@@ -7,6 +7,7 @@ EXTERNAL_DEPENDENCIES := \
 
 INTERNAL_DEPENDENCIES := \
 	github.com/asimihsan/arqinator/arq \
+	github.com/asimihsan/arqinator/arq/types \
 	github.com/asimihsan/arqinator/crypto \
 	github.com/asimihsan/arqinator/connector \
 
