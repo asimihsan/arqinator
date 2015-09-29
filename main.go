@@ -55,5 +55,11 @@ func main() {
 		r.Close()
 		tree_packfile = b.Bytes()
 	}
-	log.Printf("%x", tree_packfile[:100])
+
+	log.Printf("tree_packfile: %x", tree_packfile[:100])
+	tree, err := arq_types.ReadTree(bytes.NewBuffer(tree_packfile))
+	if err != nil {
+		log.Printf("failed to get tree: %s", err)
+	}
+	log.Printf("tree: %s", tree)
 }
