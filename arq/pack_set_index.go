@@ -3,10 +3,10 @@ package arq
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -14,6 +14,8 @@ import (
 	"unsafe"
 
 	"github.com/edsrzf/mmap-go"
+
+	"github.com/asimihsan/arqinator/arq/types"
 )
 
 type ArqPackSetIndex struct {
@@ -174,33 +176,19 @@ func (apsi *ArqPackSetIndex) GetPackFile(abs *ArqBackupSet, ab *ArqBucket, targe
 		}()
 	}
 	if packIndexObjectResult == nil {
-		err = errors.New(fmt.Sprintf("GetPackFile failed to find targetSHA1 %x",
-			hex.EncodeToString(targetSHA1[:])))
+		err = errors.New(fmt.Sprintf("GetPackFile failed to find targetSHA1 %s",
+			targetSHA1))
 		log.Printf("%s", err)
 		return nil, err
 	}
-	log.Printf("packIndexObjectResult: %s, indexResult: %s",
-		packIndexObjectResult, indexResult)
-
 	packName, _ := splitExt(path.Base(indexResult))
 	pfo, err := GetObjectFromTreePackFile(abs, ab, packIndexObjectResult, packName)
 	if err != nil {
 		log.Printf("GetPackFile failed to GetObjectFromTreePackFile: %s", err)
 		return nil, err
 	}
-
-	log.Printf("length: %d", len(pfo.Data))
-	decrypted := abs.BlobDecrypter.Decrypt(pfo.Data)
-	log.Printf("decrypted: %x", pfo.Data[:32])
+	decrypted := abs.BlobDecrypter.Decrypt(pfo.Data.Data)
 	return decrypted, nil
-
-	/*
-		var b bytes.Buffer
-		r, _ := gzip.NewReader(bytes.NewBuffer(decrypted))
-		io.Copy(&b, r)
-		r.Close()
-		log.Printf("decompressed: %x", b.Bytes()[:32])
-	*/
 }
 
 func (apsi *ArqPackSetIndex) listIndexes() ([]string, error) {
@@ -216,28 +204,28 @@ func (apsi *ArqPackSetIndex) listIndexes() ([]string, error) {
 }
 
 type PackFileObject struct {
-	Mimetype []byte
-	Name     []byte
-	Data     []byte
+	Mimetype *arq_types.String
+	Name     *arq_types.String
+	Data     *arq_types.String
 }
 
 func NewPackFileObject(buf []byte) (*PackFileObject, error) {
 	var err error
 	pfo := PackFileObject{}
 	p := bytes.NewBuffer(buf)
-	if err = ReadString(p, &pfo.Mimetype); err != nil {
+	if pfo.Mimetype, err = arq_types.ReadString(p); err != nil {
 		log.Printf("GetObjectFromTreePackFile failed during Mimetype parsing: %s", err)
 		return nil, err
 	}
-	if err = ReadString(p, &pfo.Name); err != nil {
+	if pfo.Name, err = arq_types.ReadString(p); err != nil {
 		log.Printf("GetObjectFromTreePackFile failed during Name parsing: %s", err)
 		return nil, err
 	}
 	var dataLength uint64
 	binary.Read(p, binary.BigEndian, &dataLength)
-	pfo.Data = p.Next(int(dataLength))
-	if len(pfo.Data) != int(dataLength) {
-		log.Printf("GetObjectFromTreePackFile expected %d bytes but only got %d", dataLength, len(pfo.Data))
+	pfo.Data = &arq_types.String{Data: p.Next(int(dataLength))}
+	if len(pfo.Data.Data) != int(dataLength) {
+		log.Printf("GetObjectFromTreePackFile expected %d bytes but only got %d", dataLength, len(pfo.Data.Data))
 		return &pfo, errors.New("GetObjectFromTreePackFile didn't get enough bytes")
 	}
 	return &pfo, nil
@@ -264,8 +252,21 @@ func GetObjectFromTreePackFile(abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexO
 			packFilepath, pio, err)
 		return nil, err
 	}
-	buf := make([]byte, pio.Length+10)
-	_, err = io.ReadAtLeast(file, buf, len(buf))
+
+	// TODO In the pack index, the "data length" of an object only corresponds
+	// to the size of the data in the pack file itself. This length ignores the
+	// size of the mimetype (string) and name (string). Since these strings
+	// are variable length it's not possible to know how much of the pack file
+	// we need to load in order to get the object.
+	//
+	// I think the ideal solution is to mmap the file, but I've been getting
+	// segmentation faults, possibly because I'm trying to use an offset which
+	// isn't a multiple of the page size. So in the mean time just load the
+	// whole file into memory...not ideal but since it's just a pack file
+	// should be <= 10MB.
+	//
+	// https://github.com/edsrzf/mmap-go/blob/master/mmap.go#L53
+	buf, err := ioutil.ReadAll(file)
 	if err != nil {
 		log.Printf("GetObjectFromTreePackFile some error reading: %s for pio %s: %s",
 			packFilepath, pio, err)

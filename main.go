@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	"io"
 	"log"
 	"os"
 
@@ -11,6 +14,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 
 	"github.com/asimihsan/arqinator/arq"
+	"github.com/asimihsan/arqinator/arq/types"
 	"github.com/asimihsan/arqinator/connector"
 )
 
@@ -34,11 +38,22 @@ func main() {
 	ab := abs.Buckets[0]
 	apsi, _ := arq.NewPackSetIndex(cacheDirectory, abs, ab)
 	pf, _ := apsi.GetPackFile(abs, ab, ab.HeadSHA1)
-	log.Printf("%x", pf[:100])
+	commit, err := arq_types.ReadCommit(bytes.NewBuffer(pf))
+	if err != nil {
+		log.Printf("failed to parse commit: %s", err)
+	}
+	log.Printf("%s", commit)
 
-	//filepath, _ := abs.Connection.CachedGet(abs.S3BucketName, abs.Uuid+"/objects/"+"0418bf572b59518dadc0d383c8fc0a2c0011d91a")
-	//data, _ := ioutil.ReadFile(filepath)
-	//decrypted := abs.BlobDecrypter.Decrypt(data)
-	//log.Println(string(decrypted))
-	//new: 45979a8b411e46747343957240781e5ae14803ce
+	tree_packfile, _ := apsi.GetPackFile(abs, ab, commit.TreeBlobKey.SHA1)
+	if err != nil {
+		log.Printf("failed to get tree blob: %s", err)
+	}
+	if commit.TreeBlobKey.IsCompressed.IsTrue() {
+		var b bytes.Buffer
+		r, _ := gzip.NewReader(bytes.NewBuffer(tree_packfile))
+		io.Copy(&b, r)
+		r.Close()
+		tree_packfile = b.Bytes()
+	}
+	log.Printf("%x", tree_packfile[:100])
 }
