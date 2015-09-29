@@ -24,17 +24,23 @@ func (h Header) String() string {
 		h.Type, h.Version, h.Data)
 }
 
+// CommitV000
+// TreeV000
+// XAttrSetV000
 func ReadHeader(p *bytes.Buffer) (header *Header, err error) {
 	header = &Header{}
-	header.Data = p.Next(10)
+	prefix := p.Next(4)
 	var version []byte
-	if bytes.HasPrefix(header.Data, []byte("CommitV")) {
+	if bytes.Equal(prefix, []byte("Comm")) {
+		header.Data = append(prefix, p.Next(6)...)
 		header.Type = BLOB_TYPE_COMMIT
 		version = bytes.TrimPrefix(header.Data, []byte("CommitV"))
-	} else if bytes.HasPrefix(header.Data, []byte("TreeV")) {
+	} else if bytes.Equal(prefix, []byte("Tree")) {
+		header.Data = append(prefix, p.Next(4)...)
 		header.Type = BLOB_TYPE_TREE
 		version = bytes.TrimPrefix(header.Data, []byte("TreeV"))
-	} else if bytes.HasPrefix(header.Data, []byte("XAttrSetV")) {
+	} else if bytes.Equal(prefix, []byte("XAtt")) {
+		header.Data = append(prefix, p.Next(8)...)
 		header.Type = BLOB_TYPE_X_ATTR_SET
 		version = bytes.TrimPrefix(header.Data, []byte("XAttrSetV"))
 	} else {

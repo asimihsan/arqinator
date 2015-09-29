@@ -49,6 +49,9 @@ func ReadStringAsSHA1(p *bytes.Buffer) ([20]byte, error) {
 		log.Printf("%s", err)
 		return result, err
 	}
+	if data1 == nil {
+		return result, nil
+	}
 	data2, err := hex.DecodeString(string(data1.Data))
 	if err != nil {
 		err = errors.New(fmt.Sprintf("ReadStringAsSHA1 failed to hex decode %s hex: %s",
