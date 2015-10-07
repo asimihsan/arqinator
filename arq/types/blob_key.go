@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -56,7 +56,7 @@ func ReadBlobKey(p *bytes.Buffer, h *Header, readIsCompressed bool) (blobKey *Bl
 	blobKey = &BlobKey{Header: h}
 	if blobKey.SHA1, err2 = ReadStringAsSHA1(p); err2 != nil {
 		err = errors.New(fmt.Sprintf("ReadBlobKey failed to hex decode hex: %s", err2))
-		log.Printf("%s", err)
+		log.Debugf("%s", err)
 		return
 	}
 	if (h.Type == BLOB_TYPE_TREE && h.Version >= 14) ||
@@ -75,12 +75,12 @@ func ReadBlobKey(p *bytes.Buffer, h *Header, readIsCompressed bool) (blobKey *Bl
 	if h.Type == BLOB_TYPE_TREE && h.Version >= 17 {
 		binary.Read(p, binary.BigEndian, &blobKey.StorageType)
 		if blobKey.ArchiveId, err = ReadString(p); err != nil {
-			log.Printf("ReadBlobKey failed to read ArchiveId %s", err)
+			log.Debugf("ReadBlobKey failed to read ArchiveId %s", err)
 			return
 		}
 		binary.Read(p, binary.BigEndian, &blobKey.ArchiveSize)
 		if blobKey.ArchiveUploadedDate, err = ReadDate(p); err != nil {
-			log.Printf("ReadBlobKey failed to read ArchiveUploadedDate %s", err)
+			log.Debugf("ReadBlobKey failed to read ArchiveUploadedDate %s", err)
 			return
 		}
 	}

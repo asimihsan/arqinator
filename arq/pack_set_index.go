@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"os"
 	"path"
 	"path/filepath"
@@ -64,7 +64,7 @@ func readIntoPackIndexObject(r io.Reader) (*PackIndexObject, error) {
 	pio := PackIndexObject{}
 	err := binary.Read(r, binary.BigEndian, &pio)
 	if err != nil {
-		log.Printf("Failed during readIntoPackIndexObject: %s", err)
+		log.Debugf("Failed during readIntoPackIndexObject: %s", err)
 		return nil, err
 	}
 	return &pio, nil
@@ -116,7 +116,7 @@ func testEq(a [20]byte, b [20]byte) bool {
 				for i := 0; i < numberOfObjects; i++ {
 					pio, _ := readIntoPackIndexObject(p)
 					if testEq(pio.SHA1, targetSHA1) {
-						log.Printf("index: %s, pio: %s", index, pio)
+						log.Debugf("index: %s, pio: %s", index, pio)
 						return
 					}
 				}
@@ -138,7 +138,7 @@ func splitExt(path string) (root, ext string) {
 func (apsi *ArqPackSetIndex) GetPackFile(abs *ArqBackupSet, ab *ArqBucket, targetSHA1 [20]byte) ([]byte, error) {
 	indexes, err := apsi.listIndexes()
 	if err != nil {
-		log.Printf("ArqPackSetIndex %s failed in GetPackFile to listIndexes: %s", err)
+		log.Debugf("ArqPackSetIndex %s failed in GetPackFile to listIndexes: %s", err)
 		return nil, err
 	}
 	var packIndexObjectResult *PackIndexObject
@@ -178,16 +178,20 @@ func (apsi *ArqPackSetIndex) GetPackFile(abs *ArqBackupSet, ab *ArqBucket, targe
 	if packIndexObjectResult == nil {
 		err = errors.New(fmt.Sprintf("GetPackFile failed to find targetSHA1 %s",
 			targetSHA1))
-		log.Printf("%s", err)
+		log.Debugf("%s", err)
 		return nil, err
 	}
 	packName, _ := splitExt(path.Base(indexResult))
 	pfo, err := GetObjectFromTreePackFile(abs, ab, packIndexObjectResult, packName)
 	if err != nil {
-		log.Printf("GetPackFile failed to GetObjectFromTreePackFile: %s", err)
+		log.Debugf("GetPackFile failed to GetObjectFromTreePackFile: %s", err)
 		return nil, err
 	}
-	decrypted := abs.BlobDecrypter.Decrypt(pfo.Data.Data)
+	decrypted, err := abs.BlobDecrypter.Decrypt(pfo.Data.Data)
+	if err != nil {
+		log.Debugf("GetPackFile failed to decrypt: %s", err)
+		return nil, err
+	}
 	return decrypted, nil
 }
 
@@ -197,7 +201,7 @@ func (apsi *ArqPackSetIndex) listIndexes() ([]string, error) {
 	pattern := fmt.Sprintf("%s/*.index", root_dir)
 	indexes, err := filepath.Glob(pattern)
 	if err != nil {
-		log.Println("GetPackFile failed to list indexes: ", err)
+		log.Debugln("GetPackFile failed to list indexes: ", err)
 		return nil, err
 	}
 	return indexes, nil
@@ -214,18 +218,18 @@ func NewPackFileObject(buf []byte) (*PackFileObject, error) {
 	pfo := PackFileObject{}
 	p := bytes.NewBuffer(buf)
 	if pfo.Mimetype, err = arq_types.ReadString(p); err != nil {
-		log.Printf("GetObjectFromTreePackFile failed during Mimetype parsing: %s", err)
+		log.Debugf("GetObjectFromTreePackFile failed during Mimetype parsing: %s", err)
 		return nil, err
 	}
 	if pfo.Name, err = arq_types.ReadString(p); err != nil {
-		log.Printf("GetObjectFromTreePackFile failed during Name parsing: %s", err)
+		log.Debugf("GetObjectFromTreePackFile failed during Name parsing: %s", err)
 		return nil, err
 	}
 	var dataLength uint64
 	binary.Read(p, binary.BigEndian, &dataLength)
 	pfo.Data = &arq_types.String{Data: p.Next(int(dataLength))}
 	if len(pfo.Data.Data) != int(dataLength) {
-		log.Printf("GetObjectFromTreePackFile expected %d bytes but only got %d", dataLength, len(pfo.Data.Data))
+		log.Debugf("GetObjectFromTreePackFile expected %d bytes but only got %d", dataLength, len(pfo.Data.Data))
 		return &pfo, errors.New("GetObjectFromTreePackFile didn't get enough bytes")
 	}
 	return &pfo, nil
@@ -236,19 +240,19 @@ func GetObjectFromTreePackFile(abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexO
 		fmt.Sprintf("%s-trees", ab.UUID), fmt.Sprintf("%s.pack", packName))
 	packFilepath, err := abs.Connection.CachedGet(abs.S3BucketName, key)
 	if err != nil {
-		log.Printf("GetObjectFromTreePackFile failed to get key %s: %s", key, err)
+		log.Debugf("GetObjectFromTreePackFile failed to get key %s: %s", key, err)
 		return nil, err
 	}
 	file, err := os.OpenFile(packFilepath, os.O_RDONLY, 0644)
 	if err != nil {
-		log.Printf("GetObjectFromTreePackFile some error opening pack file %s: %s",
+		log.Debugf("GetObjectFromTreePackFile some error opening pack file %s: %s",
 			packFilepath, err)
 		return nil, err
 	}
 	defer file.Close()
 	_, err = file.Seek(int64(pio.Offset), 0)
 	if err != nil {
-		log.Printf("GetObjectFromTreePackFile Some error seeking %s for pio %s: %s",
+		log.Debugf("GetObjectFromTreePackFile Some error seeking %s for pio %s: %s",
 			packFilepath, pio, err)
 		return nil, err
 	}
@@ -268,14 +272,14 @@ func GetObjectFromTreePackFile(abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexO
 	// https://github.com/edsrzf/mmap-go/blob/master/mmap.go#L53
 	buf, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Printf("GetObjectFromTreePackFile some error reading: %s for pio %s: %s",
+		log.Debugf("GetObjectFromTreePackFile some error reading: %s for pio %s: %s",
 			packFilepath, pio, err)
 		return nil, err
 	}
 
 	pfo, err := NewPackFileObject(buf)
 	if err != nil {
-		log.Printf("GetObjectFromTreePackFile failed during NewPackFileObject: %s", err)
+		log.Debugf("GetObjectFromTreePackFile failed during NewPackFileObject: %s", err)
 		return pfo, err
 	}
 	return pfo, nil

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 // Only present for Commit v3 or later
@@ -25,12 +25,12 @@ func ReadCommitFailedFile(p *bytes.Buffer) (commitFailedFile *CommitFailedFile, 
 	commitFailedFile = &CommitFailedFile{}
 	if commitFailedFile.RelativePath, err2 = ReadString(p); err2 != nil {
 		err = errors.New(fmt.Sprintf("ReadCommitFailedFile failed during RelativePath parsing: %s", err2))
-		log.Printf("%s", err)
+		log.Debugf("%s", err)
 		return
 	}
 	if commitFailedFile.ErrorMessage, err2 = ReadString(p); err2 != nil {
 		err = errors.New(fmt.Sprintf("ReadCommitFailedFile failed during ErrorMessage parsing: %s", err2))
-		log.Printf("%s", err)
+		log.Debugf("%s", err)
 		return
 	}
 	return

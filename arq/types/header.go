@@ -19,9 +19,23 @@ type Header struct {
 	Version int
 }
 
+func getHeaderTypeAsString(headerType int) string {
+	switch headerType {
+	case BLOB_TYPE_TREE:
+		return "BLOB_TYPE_TREE"
+	case BLOB_TYPE_COMMIT:
+		return "BLOB_TYPE_COMMIT"
+	case BLOB_TYPE_X_ATTR_SET:
+		return "BLOB_TYPE_X_ATTR_SET"
+	default:
+		return "<unknown>"
+	}
+
+}
+
 func (h Header) String() string {
-	return fmt.Sprintf("{Header: Type=%d, Version=%d, Data=%s}",
-		h.Type, h.Version, h.Data)
+	return fmt.Sprintf("{Header: Type=%s, Version=%d, Data=%s}",
+		getHeaderTypeAsString(h.Type), h.Version, h.Data)
 }
 
 // CommitV000

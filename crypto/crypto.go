@@ -9,7 +9,8 @@ import (
 	"crypto/sha1"
 	"golang.org/x/crypto/pbkdf2"
 	"hash"
-	"log"
+	log "github.com/Sirupsen/logrus"
+	"errors"
 )
 
 type CryptoState struct {
@@ -31,38 +32,41 @@ func NewCryptoState(password []byte, salt []byte) (*CryptoState, error) {
 	key2, state.iv = bytesToKey(sha1.New, salt, key1, PBKDF2_ITERATIONS,
 		AES_KEY_LEN_BYTES, AES_IV_LEN_BYTES)
 	if state.c, err = aes.NewCipher(key2); err != nil {
-		log.Println("Failed to create aes cipher object in crypto NewState",
+		log.Debugln("Failed to create aes cipher object in crypto NewState",
 			err)
 		return nil, err
 	}
 	return &state, nil
 }
 
-func (s *CryptoState) Decrypt(data []byte) []byte {
+func (s *CryptoState) Decrypt(data []byte) ([]byte, error) {
 	data = bytes.TrimPrefix(data, []byte("encrypted"))
 	dec := cipher.NewCBCDecrypter(s.c, s.iv)
 	if len(data)%aes.BlockSize != 0 {
-		log.Fatal("bad block")
+		err := errors.New("Decrypt data length not multiple of AES block size")
+		return nil, err
 	}
 	dec.CryptBlocks(data, data)
-	//log.Printf("% x\n", data)
-	//log.Printf("%s\n", data)
+	//log.Debugf("% x\n", data)
+	//log.Debugf("%s\n", data)
 
 	// unpad
 	{
 		n := len(data)
 		p := int(data[n-1])
 		if p == 0 || p > aes.BlockSize {
-			log.Fatal("impossible padding")
+			err := errors.New("Decrypt impossible padding, bad password?")
+			return nil, err
 		}
 		for i := 0; i < p; i++ {
 			if data[n-1-i] != byte(p) {
-				log.Fatal("bad padding")
+				err := errors.New("Decrypt bad padding, bad password?")
+				return nil, err
 			}
 		}
 		data = data[:n-p]
 	}
-	return data
+	return data, nil
 }
 
 func bytesToKey(hf func() hash.Hash, salt, data []byte, iter int, keySize,
