@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 	"time"
 )
 
@@ -24,14 +24,14 @@ func ReadDate(p *bytes.Buffer) (date *Date, err error) {
 	date = &Date{}
 	isNull, err := p.ReadByte()
 	if err != nil {
-		log.Printf("ReadData failed to read byte: %s", err)
+		log.Debugf("ReadData failed to read byte: %s", err)
 		return
 	}
 	if isNull == 1 {
 		var epochMs uint64
 		err = binary.Read(p, binary.BigEndian, &epochMs)
 		if err != nil {
-			log.Printf("ReadData failed during read of epochMs %d: %s",
+			log.Debugf("ReadData failed during read of epochMs %d: %s",
 				epochMs, err)
 			return
 		}

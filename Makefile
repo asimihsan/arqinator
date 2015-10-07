@@ -3,7 +3,9 @@ EXTERNAL_DEPENDENCIES := \
 	github.com/edsrzf/mmap-go \
 	github.com/mattn/go-plist \
 	github.com/mitchellh/go-homedir \
-	golang.org/x/crypto/pbkdf2
+	golang.org/x/crypto/pbkdf2 \
+	github.com/codegangsta/cli \
+	github.com/Sirupsen/logrus
 
 INTERNAL_DEPENDENCIES := \
 	github.com/asimihsan/arqinator/arq \

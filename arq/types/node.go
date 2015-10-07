@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 type Node struct {
@@ -74,7 +74,7 @@ func ReadNodes(p *bytes.Buffer, treeHeader *Header) (nodes []*Node, err error) {
 		var node *Node
 		node, err = ReadNode(p, treeHeader)
 		if err != nil {
-			log.Printf("ReadNode failed to read missing node: %s", err)
+			log.Debugf("ReadNode failed to read missing node: %s", err)
 			return
 		}
 		nodes[i] = node
@@ -120,7 +120,7 @@ func ReadNode(p *bytes.Buffer, treeHeader *Header) (node *Node, err error) {
 		var dataBlobKey *BlobKey
 		dataBlobKey, err = ReadBlobKey(p, treeHeader, node.DataAreCompressed.IsTrue())
 		if err != nil {
-			log.Printf("ReadNode failed to read dataBlobKey: %s", err)
+			log.Debugf("ReadNode failed to read dataBlobKey: %s", err)
 			return
 		}
 		node.DataBlobKeys[i] = dataBlobKey

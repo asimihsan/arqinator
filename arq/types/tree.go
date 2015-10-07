@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 type Tree struct {
@@ -84,7 +84,7 @@ func ReadTree(p *bytes.Buffer) (tree *Tree, err error) {
 			return
 		}
 	}
-	log.Printf("Reading XattrsBlobKey...")
+	log.Debugf("Reading XattrsBlobKey...")
 	if tree.XattrsBlobKey, err = ReadBlobKey(p, tree.Header, true); err != nil {
 		err = errors.New(fmt.Sprintf("ReadTree XattrsBlobKey couldn't be parsed: %s", err))
 		return
@@ -93,7 +93,7 @@ func ReadTree(p *bytes.Buffer) (tree *Tree, err error) {
 		tree.XattrsBlobKey = nil
 	}
 	binary.Read(p, binary.BigEndian, &tree.XattrsSize)
-	log.Printf("Reading AclBlobKey...")
+	log.Debugf("Reading AclBlobKey...")
 	if tree.AclBlobKey, err = ReadBlobKey(p, tree.Header, true); err != nil {
 		err = errors.New(fmt.Sprintf("ReadTree AclBlobKey couldn't be parsed: %s", err))
 		return
@@ -125,13 +125,13 @@ func ReadTree(p *bytes.Buffer) (tree *Tree, err error) {
 		binary.Read(p, binary.BigEndian, &tree.CreateTimeNsec)
 	}
 	if tree.Header.Version >= 18 {
-		log.Printf("Reading MissingNodes...")
+		log.Debugf("Reading MissingNodes...")
 		if tree.MissingNodes, err = ReadNodes(p, tree.Header); err != nil {
 			err = errors.New(fmt.Sprintf("ReadTree MissingNodes couldn't be parsed: %s", err))
 			return
 		}
 	}
-	log.Printf("Reading Nodes...")
+	log.Debugf("Reading Nodes...")
 	if tree.Nodes, err = ReadNodes(p, tree.Header); err != nil {
 		err = errors.New(fmt.Sprintf("ReadTree Nodes couldn't be parsed: %s", err))
 		return

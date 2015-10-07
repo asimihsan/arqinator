@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 type String struct {
@@ -23,14 +23,14 @@ func (s String) String() string {
 func ReadString(p *bytes.Buffer) (*String, error) {
 	isNull, err := p.ReadByte()
 	if err != nil {
-		log.Printf("ReadString failed to read byte: %s", err)
+		log.Debugf("ReadString failed to read byte: %s", err)
 		return nil, err
 	}
 	if isNull == 1 {
 		var length uint64
 		err = binary.Read(p, binary.BigEndian, &length)
 		if err != nil {
-			log.Printf("ReadString failed during read of length %d: %s",
+			log.Debugf("ReadString failed during read of length %d: %s",
 				length, err)
 			return nil, err
 		}
@@ -46,7 +46,7 @@ func ReadStringAsSHA1(p *bytes.Buffer) (*[20]byte, error) {
 	data1, err := ReadString(p)
 	if err != nil {
 		err = errors.New(fmt.Sprintf("ReadStringAsSHA1 failed during SHA1 parsing: %s", err))
-		log.Printf("%s", err)
+		log.Debugf("%s", err)
 		return nil, err
 	}
 	if data1 == nil {
@@ -54,9 +54,9 @@ func ReadStringAsSHA1(p *bytes.Buffer) (*[20]byte, error) {
 	}
 	data2, err := hex.DecodeString(string(data1.Data))
 	if err != nil {
-		err = errors.New(fmt.Sprintf("ReadStringAsSHA1 failed to hex decode hex: %s",
-			err))
-		log.Fatalf("%s", err)
+		err = errors.New(fmt.Sprintf("ReadStringAsSHA1 failed to hex decode %s hex: %s",
+			data1, err))
+		log.Debugf("%s", err)
 		return nil, err
 	}
 	copy(result[:], data2)

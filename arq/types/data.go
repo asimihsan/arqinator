@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 type Data struct {
@@ -24,7 +24,7 @@ func ReadData(p *bytes.Buffer) (data *Data, err error) {
 	var length uint64
 	err = binary.Read(p, binary.BigEndian, &length)
 	if err != nil {
-		log.Printf("ReadData failed during read of length %d: %s",
+		log.Debugf("ReadData failed during read of length %d: %s",
 			length, err)
 		return
 	}

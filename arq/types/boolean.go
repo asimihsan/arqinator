@@ -3,7 +3,7 @@ package arq_types
 import (
 	"bytes"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 type Boolean struct {
@@ -26,7 +26,7 @@ func ReadBoolean(p *bytes.Buffer) (boolean *Boolean, err error) {
 	boolean = &Boolean{}
 	isTrue, err := p.ReadByte()
 	if err != nil {
-		log.Printf("ReadString failed to read byte: %s", err)
+		log.Debugf("ReadString failed to read byte: %s", err)
 		return
 	}
 	boolean.IsPresent = true

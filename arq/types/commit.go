@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/Sirupsen/logrus"
 )
 
 const (
@@ -75,25 +75,25 @@ func ReadCommit(p *bytes.Buffer) (commit *Commit, err error) {
 		var parentCommit *BlobKey
 		parentCommit, err = ReadBlobKey(p, commit.Header, DO_NOT_READ_IS_COMPRESSED)
 		if err != nil {
-			log.Printf("Failed to ReadBlobKey for commit %s: %s", commit, err)
+			log.Debugf("Failed to ReadBlobKey for commit %s: %s", commit, err)
 			return
 		}
 		commit.ParentCommits = append(commit.ParentCommits, parentCommit)
 	}
 	commit.TreeBlobKey, err = ReadBlobKey(p, commit.Header, READ_IS_COMPRESSED)
 	if err != nil {
-		log.Printf("ReadCommit failed to read TreeBlobKey %s", err)
+		log.Debugf("ReadCommit failed to read TreeBlobKey %s", err)
 		return
 	}
 	if commit.Location, err2 = ReadString(p); err2 != nil {
 		err = errors.New(fmt.Sprintf("ReadCommit failed during Location parsing: %s", err2))
-		log.Printf("%s", err)
+		log.Debugf("%s", err)
 		return
 	}
 	if commit.Header.Version < 8 {
 		if commit.MergeCommonAncestorSHA1, err2 = ReadString(p); err2 != nil {
 			err = errors.New(fmt.Sprintf("ReadCommit failed during MergeCommonAncestorSHA1 parsing: %s", err2))
-			log.Printf("%s", err)
+			log.Debugf("%s", err)
 			return
 		}
 		if commit.Header.Version >= 4 {
@@ -104,7 +104,7 @@ func ReadCommit(p *bytes.Buffer) (commit *Commit, err error) {
 		}
 	}
 	if commit.CreationDate, err = ReadDate(p); err != nil {
-		log.Printf("ReadCommit failed to read CreationDate %s", err)
+		log.Debugf("ReadCommit failed to read CreationDate %s", err)
 		return
 	}
 	if commit.Header.Version >= 3 {
@@ -115,7 +115,7 @@ func ReadCommit(p *bytes.Buffer) (commit *Commit, err error) {
 			var commitFailedFile *CommitFailedFile
 			commitFailedFile, err = ReadCommitFailedFile(p)
 			if err != nil {
-				log.Printf("Failed to ReadCommitFailedFile for commit %s: %s", commit, err)
+				log.Debugf("Failed to ReadCommitFailedFile for commit %s: %s", commit, err)
 				return
 			}
 			commit.CommitFailedFiles = append(commit.CommitFailedFiles,
@@ -125,21 +125,21 @@ func ReadCommit(p *bytes.Buffer) (commit *Commit, err error) {
 	if commit.Header.Version >= 8 {
 		if commit.HasMissingNodes, err2 = ReadBoolean(p); err2 != nil {
 			err = errors.New(fmt.Sprintf("ReadCommit failed during HasMissingNodes parsing: %s", err2))
-			log.Printf("%s", err)
+			log.Debugf("%s", err)
 			return
 		}
 	}
 	if commit.Header.Version >= 9 {
 		if commit.IsComplete, err2 = ReadBoolean(p); err2 != nil {
 			err = errors.New(fmt.Sprintf("ReadCommit failed during IsComplete parsing: %s", err2))
-			log.Printf("%s", err)
+			log.Debugf("%s", err)
 			return
 		}
 	}
 	if commit.Header.Version >= 5 {
 		if commit.ConfigPlistXML, err2 = ReadData(p); err2 != nil {
 			err = errors.New(fmt.Sprintf("ReadCommit failed during ConfigPlistXML parsing: %s", err2))
-			log.Printf("%s", err)
+			log.Debugf("%s", err)
 			return
 		}
 	}
