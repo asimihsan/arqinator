@@ -16,6 +16,7 @@ import (
 	"github.com/edsrzf/mmap-go"
 
 	"github.com/asimihsan/arqinator/arq/types"
+	"compress/gzip"
 )
 
 type ArqPackSetIndex struct {
@@ -40,6 +41,39 @@ func NewPackSetIndex(cacheDirectory string, abs *ArqBackupSet, ab *ArqBucket) (*
 func (apsi ArqPackSetIndex) String() string {
 	return fmt.Sprintf("{ArqPackSetIndex: CacheDirectory=%s, ArqBucket=%s}",
 		apsi.CacheDirectory, apsi.ArqBucket)
+}
+
+func (apsi *ArqPackSetIndex) GetPackFileAsCommit(backupSet *ArqBackupSet, bucket *ArqBucket, SHA1 [20]byte) (*arq_types.Commit, error) {
+	pf, err := apsi.GetPackFile(backupSet, bucket, bucket.HeadSHA1)
+	if err != nil {
+		log.Debugf("GetPackFileAsCommit failed during apsi.GetPackFile: ", err)
+		return nil, err
+	}
+	commit, err := arq_types.ReadCommit(bytes.NewBuffer(pf))
+	if err != nil {
+		log.Debugf("failed to parse commit: %s", err)
+	}
+	return commit, nil
+}
+
+func (apsi *ArqPackSetIndex) GetPackFileAsTree(backupSet *ArqBackupSet, bucket *ArqBucket, SHA1 [20]byte) (*arq_types.Tree, error) {
+	log.Debugf("get tree_packfile...")
+	tree_packfile, err := apsi.GetPackFile(backupSet, bucket, SHA1)
+	if err != nil {
+		log.Debugf("failed to get tree blob: %s", err)
+		return nil, err
+	}
+	log.Debugf("finished getting tree_packfile.")
+
+	log.Debugf("get tree...")
+	tree, err := arq_types.ReadTree(bytes.NewBuffer(tree_packfile))
+	if err != nil {
+		log.Debugf("failed to get tree: %s", err)
+		return nil, err
+	}
+	log.Debugf("finished getting tree.")
+	log.Debugf("tree: %s", tree)
+	return tree, nil
 }
 
 type PackIndex struct {
@@ -192,7 +226,22 @@ func (apsi *ArqPackSetIndex) GetPackFile(abs *ArqBackupSet, ab *ArqBucket, targe
 		log.Debugf("GetPackFile failed to decrypt: %s", err)
 		return nil, err
 	}
-	return decrypted, nil
+	// Try to decompress, if fails then assume it was uncompressed to begin with
+	var b bytes.Buffer
+	r, err := gzip.NewReader(bytes.NewBuffer(decrypted))
+	if err != nil {
+		log.Debugf("GetPackFile decompression failed during NewReader, assume not compresed: ", err)
+		return decrypted, nil
+	}
+	if _, err = io.Copy(&b, r); err != nil {
+		log.Debugf("GetPackFile decompression failed during io.Copy, assume not compresed: ", err)
+		return decrypted, nil
+	}
+	if err := r.Close(); err != nil {
+		log.Debugf("GetPackFile decompression failed during reader Close, assume not compresed: ", err)
+		return decrypted, nil
+	}
+	return b.Bytes(), nil
 }
 
 func (apsi *ArqPackSetIndex) listIndexes() ([]string, error) {

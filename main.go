@@ -1,9 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"compress/gzip"
-	"io"
 	log "github.com/Sirupsen/logrus"
 	"os"
 
@@ -19,6 +16,8 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"strings"
+	"path/filepath"
 	"github.com/asimihsan/arqinator/arq/types"
 )
 
@@ -74,17 +73,14 @@ func listBackupSets(c *cli.Context, s3Connection *connector.S3Connection) error 
 			fmt.Printf("        UUID %s\n", bucket.UUID)
 		}
 	}
-
 	return nil
-	//abs, _ := arq.NewArqBackupSet(s3BucketName, s3Connection, arqBackupSetUuid, password)
-	//log.Debugln("ArqBackupSet: ", abs)
-	//abs.CacheTreePackSets()
 }
 
 func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection) error {
 	cacheDirectory := c.GlobalString("cache-directory")
 	backupSetUuid := c.String("backup-set-uuid")
 	folderUuid := c.String("folder-uuid")
+	targetPath := c.String("path")
 
 	arqBackupSets, err := getArqBackupSets(c, s3Connection)
 	if err != nil {
@@ -110,40 +106,62 @@ func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection)
 	backupSet.CacheTreePackSets()
 
 	apsi, _ := arq.NewPackSetIndex(cacheDirectory, backupSet, bucket)
-	pf, _ := apsi.GetPackFile(backupSet, bucket, bucket.HeadSHA1)
-	commit, err := arq_types.ReadCommit(bytes.NewBuffer(pf))
+	commit, err := apsi.GetPackFileAsCommit(backupSet, bucket, bucket.HeadSHA1)
 	if err != nil {
-		log.Debugf("failed to parse commit: %s", err)
+		log.Debugf("failed to get commit: %s", err)
 	}
 	log.Debugf("commit: %s", commit)
-
-	log.Debugf("get tree_packfile...")
-	tree_packfile, _ := apsi.GetPackFile(backupSet, bucket, *commit.TreeBlobKey.SHA1)
-	if err != nil {
-		log.Debugf("failed to get tree blob: %s", err)
-	}
-	log.Debugf("finished getting tree_packfile.")
-	log.Debugf("decompress tree_packfile...")
-	if commit.TreeBlobKey.IsCompressed.IsTrue() {
-		var b bytes.Buffer
-		r, _ := gzip.NewReader(bytes.NewBuffer(tree_packfile))
-		io.Copy(&b, r)
-		r.Close()
-		tree_packfile = b.Bytes()
-	}
-	log.Debugf("finished decompressing tree_packfile.")
-
-	log.Debugf("get tree...")
-	tree, err := arq_types.ReadTree(bytes.NewBuffer(tree_packfile))
-	if err != nil {
-		log.Debugf("failed to get tree: %s", err)
-	}
-	log.Debugf("finished getting tree.")
-	log.Debugf("tree: %s", tree)
-	for _, node := range tree.Nodes {
-		fmt.Printf("%s\n", node.Name)
+	if !strings.HasPrefix(targetPath, commit.Path) {
+		err := errors.New(fmt.Sprintf("Target path %s is not located within commit path %s", targetPath, commit.Path))
+		log.Errorf("%s", err)
+		return err
 	}
 
+	var currentNode *arq_types.Node
+	currentHash := commit.TreeBlobKey.SHA1
+	currentPath := commit.Path
+	for {
+		log.Debugf("currentPath: %s, currentHash: %s", currentPath, currentHash)
+
+		nextPathElement := strings.TrimPrefix(targetPath, currentPath)
+		nextPathElement = filepath.Clean(nextPathElement)
+		if nextPathElement == "/" {
+			nextPathElement = "."
+		}
+		nextPathElement = strings.TrimPrefix(nextPathElement, "/")
+		nextPathElement = strings.Split(nextPathElement, "/")[0]
+
+		tree, err := apsi.GetPackFileAsTree(backupSet, bucket, *currentHash)
+		if err != nil {
+			log.Debugf("failed to get tree: %s", err)
+		}
+		if nextPathElement == "." {
+			if currentNode == nil || currentNode.IsTree.IsTrue() {
+				arq_types.PrintOutputHeader()
+				for _, node := range tree.Nodes {
+					node.PrintOutput()
+				}
+			} else {
+				arq_types.PrintOutputHeader()
+				currentNode.PrintOutput()
+			}
+			break
+		}
+
+		found := false
+		for _, node := range tree.Nodes {
+			if node.Name.Equal(nextPathElement) {
+				found = true
+				currentNode = node
+				currentHash = node.DataBlobKeys[0].SHA1
+			}
+		}
+		if found == false {
+			log.Printf("Failed to find targetPath: %s", targetPath)
+			break
+		}
+		currentPath = filepath.Join(currentPath, nextPathElement)
+	}
 	return nil
 }
 

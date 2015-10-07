@@ -6,11 +6,16 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"regexp"
 )
 
 const (
 	READ_IS_COMPRESSED        = true
 	DO_NOT_READ_IS_COMPRESSED = false
+)
+
+var (
+	LOCATION_REGEXP = regexp.MustCompile("^file://(?P<computer>[^/]+)(?P<path>.*)$")
 )
 
 type Commit struct {
@@ -19,7 +24,11 @@ type Commit struct {
 	Comment       *String
 	ParentCommits []*BlobKey
 	TreeBlobKey   *BlobKey
+
 	Location      *String
+	// These fields aren't part of the file, but are derived fields of Location
+	Computer string
+	Path string
 
 	// only present for Commit v7 or older, never used
 	MergeCommonAncestorSHA1 *String
@@ -43,12 +52,12 @@ type Commit struct {
 func (c Commit) String() string {
 	return fmt.Sprintf("{Commit: Header=%s, Author=%s, Comment=%s, "+
 		"ParentCommits=%s, TreeBlobKey=%s, Location=%s, "+
-		"MergeCommonAncestorSHA1=%s, "+
+		"Computer=%s, Path=%s, MergeCommonAncestorSHA1=%s, "+
 		"IsMergeCommonAncestorEncryptionKeyStretched=%s, "+
 		"CreationDate=%s, CommitFailedFiles=%s, HasMissingNodes=%s, "+
 		"IsComplete=%s}",
 		c.Header, c.Author, c.Comment, c.ParentCommits, c.TreeBlobKey,
-		c.Location, c.MergeCommonAncestorSHA1,
+		c.Location, c.Computer, c.Path, c.MergeCommonAncestorSHA1,
 		c.IsMergeCommonAncestorEncryptionKeyStretched, c.CreationDate,
 		c.CommitFailedFiles, c.HasMissingNodes, c.IsComplete)
 }
@@ -85,11 +94,21 @@ func ReadCommit(p *bytes.Buffer) (commit *Commit, err error) {
 		log.Debugf("ReadCommit failed to read TreeBlobKey %s", err)
 		return
 	}
+
 	if commit.Location, err2 = ReadString(p); err2 != nil {
 		err = errors.New(fmt.Sprintf("ReadCommit failed during Location parsing: %s", err2))
 		log.Debugf("%s", err)
 		return
 	}
+	locationMatcher := LOCATION_REGEXP.FindAllSubmatch(commit.Location.Data, -1)
+	if locationMatcher == nil {
+		err = errors.New(fmt.Sprintf("Failed to parse commit.Location %s using LOCATION_REGEXP.", commit.Location))
+		log.Debugf("%s", err)
+		return
+	}
+	commit.Computer = string(locationMatcher[0][1])
+	commit.Path = string(locationMatcher[0][2])
+
 	if commit.Header.Version < 8 {
 		if commit.MergeCommonAncestorSHA1, err2 = ReadString(p); err2 != nil {
 			err = errors.New(fmt.Sprintf("ReadCommit failed during MergeCommonAncestorSHA1 parsing: %s", err2))

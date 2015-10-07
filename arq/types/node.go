@@ -6,6 +6,10 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"os"
+	"text/tabwriter"
+	"time"
+	"github.com/dustin/go-humanize"
 )
 
 type Node struct {
@@ -25,7 +29,7 @@ type Node struct {
 	AclBlobKey               *BlobKey
 	Uid                      int32
 	Gid                      int32
-	Mode                     int32
+	Mode                     os.FileMode
 	MtimeSec                 int64
 	MtimeNsec                int64
 	Flags                    int64
@@ -51,7 +55,7 @@ func (n Node) String() string {
 		"TreeContainsMissingItems=%s, DataAreCompressed=%s, "+
 		"XattrsAreCompressed=%s, AclIsCompressed=%s, len(DataBlobKeys)=%d, "+
 		"UncompressedDataSize=%d, XattrsBlobKey=%s, XattrsSize=%d, "+
-		"AclBlobKey=%s, Uid=%d, Gid=%d, Mode=%d, MtimeSec=%d, MtimeNsec=%d, "+
+		"AclBlobKey=%s, Uid=%d, Gid=%d, Mode=%s, MtimeSec=%d, MtimeNsec=%d, "+
 		"Flags=%d, FinderFlags=%d, ExtendedFinderFlags=%d, FinderFileType=%s, "+
 		"FinderFileCreator=%s, FileExtensionHidden=%s, StDev=%d, StIno=%d, " +
 		"StNlink=%d, StRdev=%d, CtimeSec=%d, CtimeNsec=%d, CreateTimeSec=%d, " +
@@ -64,6 +68,26 @@ func (n Node) String() string {
 		n.FinderFileType, n.FinderFileCreator, n.FileExtensionHidden, n.StDev,
 		n.StIno, n.StNlink, n.StRdev, n.CtimeSec, n.CtimeNsec, n.CreateTimeSec,
 		n.CreateTimeNsec, n.StBlocks, n.StBlksize)
+}
+
+func getListOutputWriter() *tabwriter.Writer {
+	w := new(tabwriter.Writer)
+	w.Init(os.Stdout, 0, 4, 0, '\t', 0)
+	return w
+}
+
+func PrintOutputHeader() {
+	w := getListOutputWriter()
+	fmt.Fprintf(w, "Name\tLast Modified\tSize\n")
+}
+
+
+func (n *Node) PrintOutput() {
+	w := getListOutputWriter()
+	modifiedTime := time.Unix(n.MtimeSec, n.MtimeNsec)
+	size := humanize.Bytes(n.UncompressedDataSize)
+	fmt.Fprintf(w, "%s\t%s\t%s\n", n.Name, modifiedTime, size)
+	w.Flush()
 }
 
 func ReadNodes(p *bytes.Buffer, treeHeader *Header) (nodes []*Node, err error) {
