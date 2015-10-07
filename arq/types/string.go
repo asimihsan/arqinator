@@ -20,6 +20,10 @@ func (s String) String() string {
 	return fmt.Sprintf("%s", s.Data)
 }
 
+func (s *String) Equal(o string) bool {
+	return bytes.Equal(s.Data, []byte(o))
+}
+
 func ReadString(p *bytes.Buffer) (*String, error) {
 	isNull, err := p.ReadByte()
 	if err != nil {

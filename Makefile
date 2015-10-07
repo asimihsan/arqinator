@@ -5,7 +5,8 @@ EXTERNAL_DEPENDENCIES := \
 	github.com/mitchellh/go-homedir \
 	golang.org/x/crypto/pbkdf2 \
 	github.com/codegangsta/cli \
-	github.com/Sirupsen/logrus
+	github.com/Sirupsen/logrus \
+	github.com/dustin/go-humanize
 
 INTERNAL_DEPENDENCIES := \
 	github.com/asimihsan/arqinator/arq \
