@@ -42,12 +42,15 @@ func main() {
 	if err != nil {
 		log.Printf("failed to parse commit: %s", err)
 	}
-	log.Printf("%s", commit)
+	log.Printf("commit: %s", commit)
 
-	tree_packfile, _ := apsi.GetPackFile(abs, ab, commit.TreeBlobKey.SHA1)
+	log.Printf("get tree_packfile...")
+	tree_packfile, _ := apsi.GetPackFile(abs, ab, *commit.TreeBlobKey.SHA1)
 	if err != nil {
 		log.Printf("failed to get tree blob: %s", err)
 	}
+	log.Printf("finished getting tree_packfile.")
+	log.Printf("decompress tree_packfile...")
 	if commit.TreeBlobKey.IsCompressed.IsTrue() {
 		var b bytes.Buffer
 		r, _ := gzip.NewReader(bytes.NewBuffer(tree_packfile))
@@ -55,11 +58,13 @@ func main() {
 		r.Close()
 		tree_packfile = b.Bytes()
 	}
+	log.Printf("finished decompressing tree_packfile.")
 
-	log.Printf("tree_packfile: %x", tree_packfile[:100])
+	log.Printf("get tree...")
 	tree, err := arq_types.ReadTree(bytes.NewBuffer(tree_packfile))
 	if err != nil {
 		log.Printf("failed to get tree: %s", err)
 	}
+	log.Printf("finished getting tree.")
 	log.Printf("tree: %s", tree)
 }
