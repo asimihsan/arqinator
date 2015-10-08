@@ -5,9 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	log "github.com/Sirupsen/logrus"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,9 +14,10 @@ import (
 
 	"github.com/edsrzf/mmap-go"
 
-	"github.com/asimihsan/arqinator/arq/types"
 	"compress/gzip"
 	"encoding/hex"
+	"github.com/asimihsan/arqinator/arq/types"
+	"io/ioutil"
 	"strings"
 )
 
@@ -29,6 +29,10 @@ type ArqPackSetIndex struct {
 
 func GetPathToBucketPackSetTrees(abs *ArqBackupSet, ab *ArqBucket) string {
 	return path.Join(abs.Uuid, "packsets", fmt.Sprintf("%s-trees", ab.UUID))
+}
+
+func GetPathToBucketPackSetBlobs(abs *ArqBackupSet, ab *ArqBucket) string {
+	return path.Join(abs.Uuid, "packsets", fmt.Sprintf("%s-blobs", ab.UUID))
 }
 
 func NewPackSetIndex(cacheDirectory string, abs *ArqBackupSet, ab *ArqBucket) (*ArqPackSetIndex, error) {
@@ -103,7 +107,7 @@ func FindNode(cacheDirectory string, backupSet *ArqBackupSet, bucket *ArqBucket,
 }
 
 func (apsi *ArqPackSetIndex) GetPackFileAsCommit(backupSet *ArqBackupSet, bucket *ArqBucket, SHA1 [20]byte) (*arq_types.Commit, error) {
-	pf, err := apsi.GetPackFile(backupSet, bucket, bucket.HeadSHA1)
+	pf, err := apsi.GetTreePackFile(backupSet, bucket, bucket.HeadSHA1)
 	if err != nil {
 		log.Debugf("GetPackFileAsCommit failed during apsi.GetPackFile: ", err)
 		return nil, err
@@ -117,7 +121,7 @@ func (apsi *ArqPackSetIndex) GetPackFileAsCommit(backupSet *ArqBackupSet, bucket
 
 func (apsi *ArqPackSetIndex) GetPackFileAsTree(backupSet *ArqBackupSet, bucket *ArqBucket, SHA1 [20]byte) (*arq_types.Tree, error) {
 	log.Debugf("get tree_packfile...")
-	tree_packfile, err := apsi.GetPackFile(backupSet, bucket, SHA1)
+	tree_packfile, err := apsi.GetTreePackFile(backupSet, bucket, SHA1)
 	if err != nil {
 		log.Debugf("failed to get tree blob: %s", err)
 		return nil, err
@@ -228,8 +232,9 @@ func splitExt(path string) (root, ext string) {
 	return
 }
 
-func (apsi *ArqPackSetIndex) GetPackFile(abs *ArqBackupSet, ab *ArqBucket, targetSHA1 [20]byte) ([]byte, error) {
-	indexes, err := apsi.listIndexes()
+// TODO copy/paste of GetBlobPackFile, refactor
+func (apsi *ArqPackSetIndex) GetTreePackFile(abs *ArqBackupSet, ab *ArqBucket, targetSHA1 [20]byte) ([]byte, error) {
+	indexes, err := apsi.ListTreeIndexes()
 	if err != nil {
 		log.Debugf("ArqPackSetIndex %s failed in GetPackFile to listIndexes: %s", err)
 		return nil, err
@@ -275,11 +280,13 @@ func (apsi *ArqPackSetIndex) GetPackFile(abs *ArqBackupSet, ab *ArqBucket, targe
 		return nil, err
 	}
 	packName, _ := splitExt(path.Base(indexResult))
+
 	pfo, err := GetObjectFromTreePackFile(abs, ab, packIndexObjectResult, packName)
 	if err != nil {
 		log.Debugf("GetPackFile failed to GetObjectFromTreePackFile: %s", err)
 		return nil, err
 	}
+
 	decrypted, err := abs.BlobDecrypter.Decrypt(pfo.Data.Data)
 	if err != nil {
 		log.Debugf("GetPackFile failed to decrypt: %s", err)
@@ -303,13 +310,99 @@ func (apsi *ArqPackSetIndex) GetPackFile(abs *ArqBackupSet, ab *ArqBucket, targe
 	return b.Bytes(), nil
 }
 
-func (apsi *ArqPackSetIndex) listIndexes() ([]string, error) {
-	root_dir := path.Join(apsi.CacheDirectory,
+func (apsi *ArqPackSetIndex) GetBlobPackFile(abs *ArqBackupSet, ab *ArqBucket, targetSHA1 [20]byte) ([]byte, error) {
+	indexes, err := apsi.ListBlobIndexes()
+	if err != nil {
+		log.Debugf("ArqPackSetIndex %s failed in GetBlobPackFile to listIndexes: %s", err)
+		return nil, err
+	}
+	var packIndexObjectResult *PackIndexObject
+	var indexResult string
+	for _, index := range indexes {
+		func() {
+			file, err := os.OpenFile(index, os.O_RDONLY, 0644)
+			if err != nil {
+				log.Panicln("Couldn't open index file: ", err)
+			}
+			defer file.Close()
+			mmap, err := mmap.MapRegion(file, -1, mmap.RDONLY, 0, 0)
+			if err != nil {
+				log.Panicln("Failed to mmap index file: ", err)
+			}
+			defer mmap.Unmap()
+
+			p := bytes.NewBuffer(mmap)
+			var header PackIndex
+			binary.Read(p, binary.BigEndian, &header)
+			numberLessThanPrefix := int(header.Fanout[targetSHA1[0]-1])
+			numberEqualAndLessThenPrefix := int(header.Fanout[targetSHA1[0]])
+			var pio PackIndexObject
+			p.Next(numberLessThanPrefix * int(unsafe.Sizeof(pio)))
+
+			numberOfObjects := numberEqualAndLessThenPrefix - numberLessThanPrefix
+			for i := 0; i < numberOfObjects; i++ {
+				pio, _ := readIntoPackIndexObject(p)
+				if testEq(pio.SHA1, targetSHA1) {
+					packIndexObjectResult = pio
+					indexResult = index
+					break
+				}
+			}
+		}()
+	}
+	if packIndexObjectResult == nil {
+		err = errors.New(fmt.Sprintf("GetBlobPackFile failed to find targetSHA1 %s",
+			hex.EncodeToString(targetSHA1[:])))
+		log.Debugf("%s", err)
+		return nil, err
+	}
+	packName, _ := splitExt(path.Base(indexResult))
+
+	pfo, err := GetObjectFromBlobPackFile(abs, ab, packIndexObjectResult, packName)
+	if err != nil {
+		log.Debugf("GetBlobPackFile failed to GetObjectFromBlobPackFile: %s", err)
+		return nil, err
+	}
+	decrypted, err := abs.BlobDecrypter.Decrypt(pfo.Data.Data)
+	if err != nil {
+		log.Debugf("GetBlobPackFile failed to decrypt: %s", err)
+		return nil, err
+	}
+	// Try to decompress, if fails then assume it was uncompressed to begin with
+	var b bytes.Buffer
+	r, err := gzip.NewReader(bytes.NewBuffer(decrypted))
+	if err != nil {
+		log.Debugf("GetBlobPackFile decompression failed during NewReader, assume not compresed: ", err)
+		return decrypted, nil
+	}
+	if _, err = io.Copy(&b, r); err != nil {
+		log.Debugf("GetBlobPackFile decompression failed during io.Copy, assume not compresed: ", err)
+		return decrypted, nil
+	}
+	if err := r.Close(); err != nil {
+		log.Debugf("GetBlobPackFile decompression failed during reader Close, assume not compresed: ", err)
+		return decrypted, nil
+	}
+	return b.Bytes(), nil
+}
+
+func (apsi *ArqPackSetIndex) ListTreeIndexes() ([]string, error) {
+	rootDir := path.Join(apsi.CacheDirectory,
 		GetPathToBucketPackSetTrees(apsi.ArqBackupSet, apsi.ArqBucket))
-	pattern := fmt.Sprintf("%s/*.index", root_dir)
+	return apsi.listIndexes(rootDir)
+}
+
+func (apsi *ArqPackSetIndex) ListBlobIndexes() ([]string, error) {
+	rootDir := path.Join(apsi.CacheDirectory,
+		GetPathToBucketPackSetBlobs(apsi.ArqBackupSet, apsi.ArqBucket))
+	return apsi.listIndexes(rootDir)
+}
+
+func (apsi *ArqPackSetIndex) listIndexes(rootDir string) ([]string, error) {
+	pattern := fmt.Sprintf("%s/*.index", rootDir)
 	indexes, err := filepath.Glob(pattern)
 	if err != nil {
-		log.Debugln("GetPackFile failed to list indexes: ", err)
+		log.Debugln("listIndexes: failed to list indexes: ", err)
 		return nil, err
 	}
 	return indexes, nil
@@ -346,6 +439,16 @@ func NewPackFileObject(buf []byte) (*PackFileObject, error) {
 func GetObjectFromTreePackFile(abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexObject, packName string) (*PackFileObject, error) {
 	key := path.Join(abs.Uuid, "packsets",
 		fmt.Sprintf("%s-trees", ab.UUID), fmt.Sprintf("%s.pack", packName))
+	return GetObjectFromPackFile(key, abs, ab, pio, packName)
+}
+
+func GetObjectFromBlobPackFile(abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexObject, packName string) (*PackFileObject, error) {
+	key := path.Join(abs.Uuid, "packsets",
+		fmt.Sprintf("%s-blobs", ab.UUID), fmt.Sprintf("%s.pack", packName))
+	return GetObjectFromPackFile(key, abs, ab, pio, packName)
+}
+
+func GetObjectFromPackFile(key string, abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexObject, packName string) (*PackFileObject, error) {
 	packFilepath, err := abs.Connection.CachedGet(abs.S3BucketName, key)
 	if err != nil {
 		log.Debugf("GetObjectFromTreePackFile failed to get key %s: %s", key, err)

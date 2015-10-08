@@ -16,6 +16,7 @@ import (
 	"github.com/asimihsan/arqinator/arq"
 	"github.com/asimihsan/arqinator/connector"
 	"runtime"
+	"bufio"
 )
 
 func cliSetup(c *cli.Context) error {
@@ -127,6 +128,65 @@ func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection)
 	return nil
 }
 
+func recover(c *cli.Context, s3Connection *connector.S3Connection) error {
+	cacheDirectory := c.GlobalString("cache-directory")
+	backupSetUuid := c.String("backup-set-uuid")
+	folderUuid := c.String("folder-uuid")
+	sourcePath := c.String("source-path")
+	destinationPath := c.String("destination-path")
+
+	if _, err := os.Stat(destinationPath); os.IsExist(err) {
+		err := errors.New(fmt.Sprintf("Destination path %s already exists, won't overwrite.", destinationPath))
+		log.Errorf("%s", err)
+		return err
+	}
+	bucket, err := findBucket(c, s3Connection, backupSetUuid, folderUuid)
+	if err != nil {
+		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUuid, folderUuid))
+		log.Errorf("%s", err)
+		return err
+	}
+	backupSet := bucket.ArqBackupSet
+	backupSet.CacheTreePackSets()
+	backupSet.CacheBlobPackSets()
+
+	tree, node, err := arq.FindNode(cacheDirectory, backupSet, bucket, sourcePath)
+	if err != nil {
+		log.Errorf("Failed to find source path %s: %s", sourcePath, err)
+		return err
+	}
+	if node == nil || node.IsTree.IsTrue() {
+		log.Errorf("unsupported right now. tree: %s", tree)
+		return nil
+	} else {
+		apsi, _ := arq.NewPackSetIndex(cacheDirectory, backupSet, bucket)
+		f, err := os.Create(destinationPath)
+		if err != nil {
+			log.Errorf("Failed to open destinationPath %s: %s", destinationPath, err)
+			return err
+		}
+		defer f.Close()
+		w := bufio.NewWriter(f)
+		for _, dataBlobKey := range node.DataBlobKeys {
+			log.Debugf("node dataBlobKey: %s", dataBlobKey)
+			var contents []byte
+			contents, err = apsi.GetBlobPackFile(backupSet, bucket, *dataBlobKey.SHA1)
+			if err != nil {
+				log.Debugf("Couldn't find data in packfile, look at objects.")
+				contents, err = arq.GetDataBlobKeyContentsFromObjects(*dataBlobKey.SHA1, bucket)
+				if err != nil {
+					log.Debugf("Couldn't find data in objects either!")
+					return err
+				}
+			}
+			w.Write(contents)
+		}
+		w.Flush()
+	}
+	return nil
+}
+
+
 func main() {
 	defaultCacheDirectory, err := homedir.Expand("~/.arqinator_cache")
 	if err != nil {
@@ -212,6 +272,43 @@ func main() {
 					return
 				}
 				if err := listDirectoryContents(c, s3Connection); err != nil {
+					log.Debugf("%s", err)
+					return
+				}
+			},
+		},
+		{
+			Name:  "recover",
+			Usage: "Recover a file or directory from a backup",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "backup-set-uuid",
+					Usage: "UUID of backup set. Use 'list-backup-sets' to determine this.",
+				},
+				cli.StringFlag{
+					Name:  "folder-uuid",
+					Usage: "UUID of folder. Use 'list-backup-sets' to determine this.",
+				},
+				cli.StringFlag{
+					Name:  "source-path",
+					Usage: "Path of directory or file in backup",
+				},
+				cli.StringFlag{
+					Name:  "destination-path",
+					Usage: "Path to recover directory or file into. Must not already exist.",
+				},
+			},
+			Action: func(c *cli.Context) {
+				if err := cliSetup(c); err != nil {
+					log.Debugf("%s", err)
+					return
+				}
+				s3Connection, err := awsSetup(c)
+				if err != nil {
+					log.Debugf("%s", err)
+					return
+				}
+				if err := recover(c, s3Connection); err != nil {
 					log.Debugf("%s", err)
 					return
 				}
