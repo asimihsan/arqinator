@@ -11,6 +11,7 @@ import (
 
 	"github.com/asimihsan/arqinator/connector"
 	"github.com/asimihsan/arqinator/crypto"
+	"strings"
 )
 
 type ArqBackupSet struct {
@@ -143,8 +144,26 @@ func (abs *ArqBackupSet) CacheTreePackSets() error {
 	return nil
 }
 
+func (abs *ArqBackupSet) CacheBlobPackSets() error {
+	log.Debugln("CacheBlobPackSets entry for ArqBackupSet: ", abs)
+	defer log.Debugln("CacheBlobPackSets exit for ArqBackupSet: ", abs)
+	for i := range abs.Buckets {
+		abs.cacheBlobPackSet(abs.Buckets[i])
+	}
+	return nil
+}
+
+func (abs *ArqBackupSet) cacheBlobPackSet(ab *ArqBucket) error {
+	prefix := GetPathToBucketPackSetBlobs(abs, ab)
+	return abs.cachePackSet(ab, prefix)
+}
+
 func (abs *ArqBackupSet) cacheTreePackSet(ab *ArqBucket) error {
 	prefix := GetPathToBucketPackSetTrees(abs, ab)
+	return abs.cachePackSet(ab, prefix)
+}
+
+func (abs *ArqBackupSet) cachePackSet(ab *ArqBucket, prefix string) error {
 	s3Objs, err := abs.Connection.ListObjectsAsAll(abs.S3BucketName, prefix)
 	if err != nil {
 		log.Debugln("Failed to cacheTreePackSet for bucket: ", ab)
@@ -160,10 +179,12 @@ func (abs *ArqBackupSet) cacheTreePackSet(ab *ArqBucket) error {
 	for i := 0; i < cap(c); i++ {
 		go func() {
 			for inputS3Obj := range inputs {
-				_, err := abs.Connection.CachedGet(abs.S3BucketName, inputS3Obj.S3FullPath)
-				if err != nil {
-					log.Debugln("cacheTreePackSet failed to get S3 object: ", inputS3Obj)
-					log.Debugln(err)
+				if strings.HasSuffix(inputS3Obj.S3FullPath, ".index") {
+					_, err := abs.Connection.CachedGet(abs.S3BucketName, inputS3Obj.S3FullPath)
+					if err != nil {
+						log.Debugln("cacheTreePackSet failed to get S3 object: ", inputS3Obj)
+						log.Debugln(err)
+					}
 				}
 			}
 			c <- 1

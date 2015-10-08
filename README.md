@@ -62,7 +62,7 @@ $ arqinator \
     --path /Users/ai/.ssh
 
 -rwx------	2013-06-29 05:43:06 -0700 PDT	1.7kB	ai_keypair_3.pem
--rw-r--r--	2013-06-28 13:44:47 -0700 PDT	0B	config
+-rw-r--r--	2013-06-28 13:44:47 -0700 PDT	0B	    config
 -rw-------	2014-12-31 19:41:47 -0800 PST	1.7kB	digitalocean
 -rw-r--r--	2014-12-31 19:41:47 -0800 PST	402B	digitalocean.pub
 -rw-------	2012-04-11 12:49:10 -0700 PDT	1.7kB	id_rsa

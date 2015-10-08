@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/dustin/go-humanize"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
-	"github.com/dustin/go-humanize"
-	"strings"
 )
 
 type Node struct {
@@ -58,8 +58,8 @@ func (n Node) String() string {
 		"UncompressedDataSize=%d, XattrsBlobKey=%s, XattrsSize=%d, "+
 		"AclBlobKey=%s, Uid=%d, Gid=%d, Mode=%s, MtimeSec=%d, MtimeNsec=%d, "+
 		"Flags=%d, FinderFlags=%d, ExtendedFinderFlags=%d, FinderFileType=%s, "+
-		"FinderFileCreator=%s, FileExtensionHidden=%s, StDev=%d, StIno=%d, " +
-		"StNlink=%d, StRdev=%d, CtimeSec=%d, CtimeNsec=%d, CreateTimeSec=%d, " +
+		"FinderFileCreator=%s, FileExtensionHidden=%s, StDev=%d, StIno=%d, "+
+		"StNlink=%d, StRdev=%d, CtimeSec=%d, CtimeNsec=%d, CreateTimeSec=%d, "+
 		"CreateTimeNsec=%d, StBlocks=%d, StBlkSize=%d}",
 		n.Name, n.TreeVersion, n.IsTree, n.TreeContainsMissingItems,
 		n.DataAreCompressed, n.XattrsAreCompressed, n.AclIsCompressed,
@@ -76,6 +76,8 @@ func getListOutputWriter() *tabwriter.Writer {
 	w.Init(os.Stdout, 0, 8, 0, '\t', 0)
 	return w
 }
+
+
 
 func (n *Node) PrintOutput() {
 	w := getListOutputWriter()
