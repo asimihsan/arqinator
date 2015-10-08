@@ -1,9 +1,9 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"os"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -11,14 +11,11 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/mitchellh/go-homedir"
 
-	"github.com/asimihsan/arqinator/arq"
-	"github.com/asimihsan/arqinator/connector"
 	"errors"
 	"fmt"
+	"github.com/asimihsan/arqinator/arq"
+	"github.com/asimihsan/arqinator/connector"
 	"runtime"
-	"strings"
-	"path/filepath"
-	"github.com/asimihsan/arqinator/arq/types"
 )
 
 func cliSetup(c *cli.Context) error {
@@ -38,7 +35,7 @@ func awsSetup(c *cli.Context) (*connector.S3Connection, error) {
 	defaults.DefaultConfig.Region = aws.String(region)
 	svc := s3.New(nil)
 	opts := &s3manager.DownloadOptions{
-		S3: svc,
+		S3:          svc,
 		Concurrency: runtime.GOMAXPROCS(0)}
 	s3Connection := connector.NewS3Connection(svc, cacheDirectory, opts)
 	return s3Connection, nil
@@ -76,16 +73,11 @@ func listBackupSets(c *cli.Context, s3Connection *connector.S3Connection) error 
 	return nil
 }
 
-func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection) error {
-	cacheDirectory := c.GlobalString("cache-directory")
-	backupSetUuid := c.String("backup-set-uuid")
-	folderUuid := c.String("folder-uuid")
-	targetPath := c.String("path")
-
+func findBucket(c *cli.Context, s3Connection *connector.S3Connection, backupSetUuid string, folderUuid string) (*arq.ArqBucket, error) {
 	arqBackupSets, err := getArqBackupSets(c, s3Connection)
 	if err != nil {
-		log.Debugf("Error during listBackupSets: %s", err)
-		return nil
+		log.Debugf("Error during findBucket: %s", err)
+		return nil, err
 	}
 	var bucket *arq.ArqBucket
 	for _, arqBackupSet := range arqBackupSets {
@@ -100,67 +92,37 @@ func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection)
 	if bucket == nil {
 		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUuid, folderUuid))
 		log.Errorf("%s", err)
+		return nil, err
+	}
+	return bucket, nil
+}
+
+func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection) error {
+	cacheDirectory := c.GlobalString("cache-directory")
+	backupSetUuid := c.String("backup-set-uuid")
+	folderUuid := c.String("folder-uuid")
+	targetPath := c.String("path")
+
+	bucket, err := findBucket(c, s3Connection, backupSetUuid, folderUuid)
+	if err != nil {
+		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUuid, folderUuid))
+		log.Errorf("%s", err)
 		return err
 	}
 	backupSet := bucket.ArqBackupSet
 	backupSet.CacheTreePackSets()
 
-	apsi, _ := arq.NewPackSetIndex(cacheDirectory, backupSet, bucket)
-	commit, err := apsi.GetPackFileAsCommit(backupSet, bucket, bucket.HeadSHA1)
+	tree, node, err := arq.FindNode(cacheDirectory, backupSet, bucket, targetPath)
 	if err != nil {
-		log.Debugf("failed to get commit: %s", err)
-	}
-	log.Debugf("commit: %s", commit)
-	if !strings.HasPrefix(targetPath, commit.Path) {
-		err := errors.New(fmt.Sprintf("Target path %s is not located within commit path %s", targetPath, commit.Path))
-		log.Errorf("%s", err)
+		log.Errorf("Failed to find target path %s: %s", targetPath, err)
 		return err
 	}
-
-	var currentNode *arq_types.Node
-	currentHash := commit.TreeBlobKey.SHA1
-	currentPath := commit.Path
-	for {
-		log.Debugf("currentPath: %s, currentHash: %s", currentPath, currentHash)
-
-		nextPathElement := strings.TrimPrefix(targetPath, currentPath)
-		nextPathElement = filepath.Clean(nextPathElement)
-		if nextPathElement == "/" {
-			nextPathElement = "."
-		}
-		nextPathElement = strings.TrimPrefix(nextPathElement, "/")
-		nextPathElement = strings.Split(nextPathElement, "/")[0]
-
-		tree, err := apsi.GetPackFileAsTree(backupSet, bucket, *currentHash)
-		if err != nil {
-			log.Debugf("failed to get tree: %s", err)
-		}
-		if nextPathElement == "." {
-			if currentNode == nil || currentNode.IsTree.IsTrue() {
-				arq_types.PrintOutputHeader()
-				for _, node := range tree.Nodes {
-					node.PrintOutput()
-				}
-			} else {
-				arq_types.PrintOutputHeader()
-				currentNode.PrintOutput()
-			}
-			break
-		}
-
-		found := false
+	if node == nil || node.IsTree.IsTrue() {
 		for _, node := range tree.Nodes {
-			if node.Name.Equal(nextPathElement) {
-				found = true
-				currentNode = node
-				currentHash = node.DataBlobKeys[0].SHA1
-			}
+			node.PrintOutput()
 		}
-		if found == false {
-			log.Printf("Failed to find targetPath: %s", targetPath)
-			break
-		}
-		currentPath = filepath.Join(currentPath, nextPathElement)
+	} else {
+		node.PrintOutput()
 	}
 	return nil
 }
@@ -198,7 +160,7 @@ func main() {
 			Usage: "Delete cache directory before starting. Useful if seeing errors that could be due to truncated downloads.",
 		},
 		cli.BoolFlag{
-			Name: "verbose",
+			Name:  "verbose",
 			Usage: "Enable verbose logging",
 		},
 	}
@@ -223,7 +185,7 @@ func main() {
 			},
 		},
 		{
-			Name: "list-directory-contents",
+			Name:  "list-directory-contents",
 			Usage: "List contents of directory in backup.",
 			Flags: []cli.Flag{
 				cli.StringFlag{

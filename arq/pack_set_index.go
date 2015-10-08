@@ -17,6 +17,8 @@ import (
 
 	"github.com/asimihsan/arqinator/arq/types"
 	"compress/gzip"
+	"encoding/hex"
+	"strings"
 )
 
 type ArqPackSetIndex struct {
@@ -41,6 +43,63 @@ func NewPackSetIndex(cacheDirectory string, abs *ArqBackupSet, ab *ArqBucket) (*
 func (apsi ArqPackSetIndex) String() string {
 	return fmt.Sprintf("{ArqPackSetIndex: CacheDirectory=%s, ArqBucket=%s}",
 		apsi.CacheDirectory, apsi.ArqBucket)
+}
+
+func FindNode(cacheDirectory string, backupSet *ArqBackupSet, bucket *ArqBucket, targetPath string) (*arq_types.Tree, *arq_types.Node, error) {
+	apsi, _ := NewPackSetIndex(cacheDirectory, backupSet, bucket)
+	commit, err := apsi.GetPackFileAsCommit(backupSet, bucket, bucket.HeadSHA1)
+	if err != nil {
+		err := errors.New(fmt.Sprintf("failed to get commit: %s", err))
+		log.Debugf("%s", err)
+		return nil, nil, err
+	}
+	log.Debugf("commit: %s", commit)
+	if !strings.HasPrefix(targetPath, commit.Path) {
+		err := errors.New(fmt.Sprintf("Target path %s is not located within commit path %s", targetPath, commit.Path))
+		log.Errorf("%s", err)
+		return nil, nil, err
+	}
+
+	var currentNode *arq_types.Node
+	var tree *arq_types.Tree
+	currentHash := commit.TreeBlobKey.SHA1
+	currentPath := commit.Path
+	for {
+		log.Debugf("currentPath: %s, currentHash: %s", currentPath, hex.EncodeToString((*currentHash)[:]))
+
+		nextPathElement := strings.TrimPrefix(targetPath, currentPath)
+		nextPathElement = filepath.Clean(nextPathElement)
+		if nextPathElement == "/" {
+			nextPathElement = "."
+		}
+		nextPathElement = strings.TrimPrefix(nextPathElement, "/")
+		nextPathElement = strings.Split(nextPathElement, "/")[0]
+
+		tree, err = apsi.GetPackFileAsTree(backupSet, bucket, *currentHash)
+		if err != nil {
+			log.Debugf("failed to get tree: %s", err)
+		}
+
+		if nextPathElement == "." {
+			log.Debugf("found node: %s", currentNode)
+			return tree, currentNode, nil
+		}
+
+		found := false
+		for _, node := range tree.Nodes {
+			if node.Name.Equal(nextPathElement) {
+				found = true
+				currentNode = node
+				currentHash = node.DataBlobKeys[0].SHA1
+			}
+		}
+		if found == false {
+			err := errors.New(fmt.Sprintf("Failed to find targetPath: %s", targetPath))
+			log.Debugf("%s", err)
+			return nil, nil, err
+		}
+		currentPath = filepath.Join(currentPath, nextPathElement)
+	}
 }
 
 func (apsi *ArqPackSetIndex) GetPackFileAsCommit(backupSet *ArqBackupSet, bucket *ArqBucket, SHA1 [20]byte) (*arq_types.Commit, error) {
@@ -211,7 +270,7 @@ func (apsi *ArqPackSetIndex) GetPackFile(abs *ArqBackupSet, ab *ArqBucket, targe
 	}
 	if packIndexObjectResult == nil {
 		err = errors.New(fmt.Sprintf("GetPackFile failed to find targetSHA1 %s",
-			targetSHA1))
+			hex.EncodeToString(targetSHA1[:])))
 		log.Debugf("%s", err)
 		return nil, err
 	}
