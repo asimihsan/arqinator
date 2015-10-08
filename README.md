@@ -51,5 +51,25 @@ ArqBackupSet
 
 ### 3. List directory contents of backups
 
+```
+$ arqinator \
+    --backup-type s3 \
+    --s3-region us-west-2 \
+    --s3-bucket-name arq-akiajmthnhpkz2ixzrxq-us-west-2 \
+    list-directory-contents \
+    --backup-set-uuid 98DB38F8-B9C6-4296-9385-3C1BF858ED5D \
+    --folder-uuid 8D4FAD2A-9E08-46F7-829D-E9601A65455D \
+    --path /Users/ai/.ssh
+
+-rwx------	2013-06-29 05:43:06 -0700 PDT	1.7kB	ai_keypair_3.pem
+-rw-r--r--	2013-06-28 13:44:47 -0700 PDT	0B	config
+-rw-------	2014-12-31 19:41:47 -0800 PST	1.7kB	digitalocean
+-rw-r--r--	2014-12-31 19:41:47 -0800 PST	402B	digitalocean.pub
+-rw-------	2012-04-11 12:49:10 -0700 PDT	1.7kB	id_rsa
+-rw-r--r--	2012-04-14 13:16:50 -0700 PDT	396B	id_rsa.pub
+-rw-------	2014-05-17 05:04:13 -0700 PDT	1.7kB	interview-ec2.pem
+-rw-r--r--	2015-09-08 14:09:39 -0700 PDT	18kB	known_hosts
+```
+
 ### 4. Restore
 

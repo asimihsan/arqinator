@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 	"github.com/dustin/go-humanize"
+	"strings"
 )
 
 type Node struct {
@@ -72,21 +73,26 @@ func (n Node) String() string {
 
 func getListOutputWriter() *tabwriter.Writer {
 	w := new(tabwriter.Writer)
-	w.Init(os.Stdout, 0, 4, 0, '\t', 0)
+	w.Init(os.Stdout, 0, 8, 0, '\t', 0)
 	return w
 }
 
-func PrintOutputHeader() {
-	w := getListOutputWriter()
-	fmt.Fprintf(w, "Name\tLast Modified\tSize\n")
-}
-
-
 func (n *Node) PrintOutput() {
 	w := getListOutputWriter()
-	modifiedTime := time.Unix(n.MtimeSec, n.MtimeNsec)
+	var modifiedTime string
+	if n.MtimeSec != 0 {
+		modifiedTime = fmt.Sprintf("%s", time.Unix(n.MtimeSec, n.MtimeNsec))
+	} else {
+		modifiedTime = strings.Repeat(" ", 30)
+	}
 	size := humanize.Bytes(n.UncompressedDataSize)
-	fmt.Fprintf(w, "%s\t%s\t%s\n", n.Name, modifiedTime, size)
+	var mode string
+	if n.IsTree.IsTrue() {
+		mode = "d" + fmt.Sprintf("%s", n.Mode)[1:]
+	} else {
+		mode = fmt.Sprintf("%s", n.Mode)
+	}
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", mode, modifiedTime, size, n.Name)
 	w.Flush()
 }
 
