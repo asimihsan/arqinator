@@ -2,8 +2,8 @@ package arq
 
 import (
 	"fmt"
-	"io/ioutil"
 	log "github.com/Sirupsen/logrus"
+	"io/ioutil"
 	"os"
 	"runtime"
 
@@ -175,7 +175,7 @@ func (abs *ArqBackupSet) cachePackSet(ab *ArqBucket, prefix string) error {
 		inputs <- &s3Objs[i]
 	}
 	close(inputs)
-	c := make(chan int, runtime.GOMAXPROCS(0))
+	c := make(chan int, runtime.GOMAXPROCS(0)*2)
 	for i := 0; i < cap(c); i++ {
 		go func() {
 			for inputS3Obj := range inputs {

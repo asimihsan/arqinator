@@ -73,3 +73,20 @@ $ arqinator \
 
 ### 4. Restore
 
+```
+$ arqinator \
+    --backup-type s3 \
+    --s3-region us-west-2 \
+    --s3-bucket-name arq-akiajmthnhpkz2ixzrxq-us-west-2 \
+    recover \
+    --backup-set-uuid 98DB38F8-B9C6-4296-9385-3C1BF858ED5D \
+    --folder-uuid 8D4FAD2A-9E08-46F7-829D-E9601A65455D \
+    --source-path /Users/ai/output.txt \
+    --destination-path /Users/ai/temp/output.txt
+```
+
+## TODO
+
+TODO implement recover for folders as well
+
+TODO soft links, permissions, users, etc.
