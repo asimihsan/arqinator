@@ -119,8 +119,14 @@ func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection)
 		return err
 	}
 	if node == nil || node.IsTree.IsTrue() {
+		apsi, _ := arq.NewPackSetIndex(cacheDirectory, backupSet, bucket)
 		for _, node := range tree.Nodes {
-			node.PrintOutput()
+			if node.IsTree.IsTrue() {
+				tree, _ := apsi.GetPackFileAsTree(backupSet, bucket, *node.DataBlobKeys[0].SHA1)
+				tree.PrintOutput(node)
+			} else {
+				node.PrintOutput()
+			}
 		}
 	} else {
 		node.PrintOutput()

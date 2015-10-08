@@ -8,7 +8,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/dustin/go-humanize"
 	"os"
-	"strings"
 	"text/tabwriter"
 	"time"
 )
@@ -77,23 +76,11 @@ func getListOutputWriter() *tabwriter.Writer {
 	return w
 }
 
-
-
 func (n *Node) PrintOutput() {
 	w := getListOutputWriter()
-	var modifiedTime string
-	if n.MtimeSec != 0 {
-		modifiedTime = fmt.Sprintf("%s", time.Unix(n.MtimeSec, n.MtimeNsec))
-	} else {
-		modifiedTime = strings.Repeat(" ", 30)
-	}
+	modifiedTime := fmt.Sprintf("%s", time.Unix(n.MtimeSec, n.MtimeNsec))
 	size := humanize.Bytes(n.UncompressedDataSize)
-	var mode string
-	if n.IsTree.IsTrue() {
-		mode = "d" + fmt.Sprintf("%s", n.Mode)[1:]
-	} else {
-		mode = fmt.Sprintf("%s", n.Mode)
-	}
+	mode := fmt.Sprintf("%s", n.Mode)
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", mode, modifiedTime, size, n.Name)
 	w.Flush()
 }
