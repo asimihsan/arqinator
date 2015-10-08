@@ -135,7 +135,7 @@ func recover(c *cli.Context, s3Connection *connector.S3Connection) error {
 	sourcePath := c.String("source-path")
 	destinationPath := c.String("destination-path")
 
-	if _, err := os.Stat(destinationPath); os.IsExist(err) {
+	if _, err := os.Stat(destinationPath); err == nil {
 		err := errors.New(fmt.Sprintf("Destination path %s already exists, won't overwrite.", destinationPath))
 		log.Errorf("%s", err)
 		return err
