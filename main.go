@@ -119,11 +119,24 @@ func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection)
 		return err
 	}
 	if node == nil || node.IsTree.IsTrue() {
+		if tree == nil {
+			err2 := errors.New(fmt.Sprintf("node is tree but no tree found: %s", node))
+			log.Errorf("%s", err2)
+			return err2
+		}
 		apsi, _ := arq.NewPackSetIndex(cacheDirectory, backupSet, bucket)
 		for _, node := range tree.Nodes {
 			if node.IsTree.IsTrue() {
-				tree, _ := apsi.GetPackFileAsTree(backupSet, bucket, *node.DataBlobKeys[0].SHA1)
-				tree.PrintOutput(node)
+				tree, err := apsi.GetPackFileAsTree(backupSet, bucket, *node.DataBlobKeys[0].SHA1)
+				if err != nil {
+					log.Debugf("Failed to find tree for node %s: %s", node, err)
+					node.PrintOutput()
+				} else if tree == nil {
+					log.Debugf("directory node %s has no tree", node)
+					node.PrintOutput()
+				} else {
+					tree.PrintOutput(node)
+				}
 			} else {
 				node.PrintOutput()
 			}
