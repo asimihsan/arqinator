@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"github.com/dustin/go-humanize"
+	"os"
+	"time"
 )
 
 type Tree struct {
@@ -22,7 +25,7 @@ type Tree struct {
 	AclBlobKey          *BlobKey
 	Uid                 int32
 	Gid                 int32
-	Mode                int32
+	Mode                os.FileMode
 	MtimeSec            int64
 	MtimeNsec           int64
 	Flags               int64
@@ -55,7 +58,7 @@ type Tree struct {
 func (c Tree) String() string {
 	return fmt.Sprintf("{Tree: Header=%s, XattrsAreCompressed=%s, "+
 		"AclIsCompressed=%s, XattrsBlobKey=%s, XattrsSize=%d, "+
-		"AclBlobKey=%s, Uid=%d, Gid=%d, Mode=%d, MtimeSec=%d, MtimeNsec=%d, "+
+		"AclBlobKey=%s, Uid=%d, Gid=%d, Mode=%s, MtimeSec=%d, MtimeNsec=%d, "+
 		"Flags=%x, FinderFlags=%x, ExtendedFinderFlags=%x, StDev=%d, "+
 		"StIno=%d, StNlink=%d, StRdev=%d, CtimeSec=%d, CtimeNsec=%d, "+
 		"StBlocks=%d, StBlksize=%d, AggregateSizeOnDisk=%d, "+
@@ -66,6 +69,15 @@ func (c Tree) String() string {
 		c.StDev, c.StIno, c.StNlink, c.StRdev, c.CtimeSec, c.CtimeNsec,
 		c.StBlocks, c.StBlksize, c.AggregateSizeOnDisk, c.CreateTimeSec,
 		c.CreateTimeNsec, c.MissingNodes)
+}
+
+func (t *Tree) PrintOutput(n *Node) {
+	w := getListOutputWriter()
+	modifiedTime := fmt.Sprintf("%s", time.Unix(t.MtimeSec, t.MtimeNsec))
+	size := humanize.Bytes(n.UncompressedDataSize)
+	mode := "d" + fmt.Sprintf("%s", t.Mode)[1:]
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", mode, modifiedTime, size, n.Name)
+	w.Flush()
 }
 
 func ReadTree(p *bytes.Buffer) (tree *Tree, err error) {
