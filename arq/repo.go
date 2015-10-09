@@ -15,7 +15,7 @@ func GetDataBlobKeyContentsFromObjects(SHA1 [20]byte, bucket *ArqBucket) ([]byte
 	SHA1String := hex.EncodeToString(SHA1[:])
 	log.Debugf("GetDataBlobKeyContents SHA1 %s, bucket %s", SHA1String, bucket)
 	backupSet := bucket.ArqBackupSet
-	key := path.Join(backupSet.Uuid, "objects", SHA1String)
+	key := path.Join(backupSet.UUID, "objects", SHA1String)
 	log.Debugf("key: %s", key)
 	dataFilepath, err := backupSet.Connection.CachedGet(key)
 	if err != nil {

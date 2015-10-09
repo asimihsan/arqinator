@@ -28,11 +28,11 @@ type ArqPackSetIndex struct {
 }
 
 func GetPathToBucketPackSetTrees(abs *ArqBackupSet, ab *ArqBucket) string {
-	return path.Join(abs.Uuid, "packsets", fmt.Sprintf("%s-trees", ab.UUID))
+	return path.Join(abs.UUID, "packsets", fmt.Sprintf("%s-trees", ab.UUID))
 }
 
 func GetPathToBucketPackSetBlobs(abs *ArqBackupSet, ab *ArqBucket) string {
-	return path.Join(abs.Uuid, "packsets", fmt.Sprintf("%s-blobs", ab.UUID))
+	return path.Join(abs.UUID, "packsets", fmt.Sprintf("%s-blobs", ab.UUID))
 }
 
 func NewPackSetIndex(cacheDirectory string, abs *ArqBackupSet, ab *ArqBucket) (*ArqPackSetIndex, error) {
@@ -437,13 +437,13 @@ func NewPackFileObject(buf []byte) (*PackFileObject, error) {
 }
 
 func GetObjectFromTreePackFile(abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexObject, packName string) (*PackFileObject, error) {
-	key := path.Join(abs.Uuid, "packsets",
+	key := path.Join(abs.UUID, "packsets",
 		fmt.Sprintf("%s-trees", ab.UUID), fmt.Sprintf("%s.pack", packName))
 	return GetObjectFromPackFile(key, abs, ab, pio, packName)
 }
 
 func GetObjectFromBlobPackFile(abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexObject, packName string) (*PackFileObject, error) {
-	key := path.Join(abs.Uuid, "packsets",
+	key := path.Join(abs.UUID, "packsets",
 		fmt.Sprintf("%s-blobs", ab.UUID), fmt.Sprintf("%s.pack", packName))
 	return GetObjectFromPackFile(key, abs, ab, pio, packName)
 }

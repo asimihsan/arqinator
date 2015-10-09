@@ -49,11 +49,11 @@ func awsSetup(c *cli.Context) (connector.Connection, error) {
 
 func googleCloudStorageSetup(c *cli.Context) (connector.Connection, error) {
 	jsonPrivateKeyFilepath := c.GlobalString("gcs-json-private-key-filepath")
-	projectId := c.GlobalString("gcs-project-id")
+	projectID := c.GlobalString("gcs-project-id")
 	bucketName := c.GlobalString("gcs-bucket-name")
 	cacheDirectory := c.GlobalString("cache-directory")
 
-	connection, err := connector.NewGoogleCloudStorageConnection(jsonPrivateKeyFilepath, projectId, bucketName, cacheDirectory)
+	connection, err := connector.NewGoogleCloudStorageConnection(jsonPrivateKeyFilepath, projectID, bucketName, cacheDirectory)
 	if err != nil {
 		return connection, err
 	}
@@ -97,7 +97,7 @@ func listBackupSets(c *cli.Context, connection connector.Connection) error {
 	}
 	for _, arqBackupSet := range arqBackupSets {
 		fmt.Printf("ArqBackupSet\n")
-		fmt.Printf("    UUID %s\n", arqBackupSet.Uuid)
+		fmt.Printf("    UUID %s\n", arqBackupSet.UUID)
 		fmt.Printf("    ComputerName %s\n", arqBackupSet.ComputerInfo.ComputerName)
 		fmt.Printf("    UserName %s\n", arqBackupSet.ComputerInfo.UserName)
 		fmt.Printf("    Folders\n")
@@ -109,7 +109,7 @@ func listBackupSets(c *cli.Context, connection connector.Connection) error {
 	return nil
 }
 
-func findBucket(c *cli.Context, connection connector.Connection, backupSetUuid string, folderUuid string) (*arq.ArqBucket, error) {
+func findBucket(c *cli.Context, connection connector.Connection, backupSetUUID string, folderUUID string) (*arq.ArqBucket, error) {
 	arqBackupSets, err := getArqBackupSets(c, connection)
 	if err != nil {
 		log.Debugf("Error during findBucket: %s", err)
@@ -117,16 +117,16 @@ func findBucket(c *cli.Context, connection connector.Connection, backupSetUuid s
 	}
 	var bucket *arq.ArqBucket
 	for _, arqBackupSet := range arqBackupSets {
-		if arqBackupSet.Uuid == backupSetUuid {
+		if arqBackupSet.UUID == backupSetUUID {
 			for _, folder := range arqBackupSet.Buckets {
-				if folder.UUID == folderUuid {
+				if folder.UUID == folderUUID {
 					bucket = folder
 				}
 			}
 		}
 	}
 	if bucket == nil {
-		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUuid, folderUuid))
+		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUUID, folderUUID))
 		log.Errorf("%s", err)
 		return nil, err
 	}
@@ -135,13 +135,13 @@ func findBucket(c *cli.Context, connection connector.Connection, backupSetUuid s
 
 func listDirectoryContents(c *cli.Context, connection connector.Connection) error {
 	cacheDirectory := c.GlobalString("cache-directory")
-	backupSetUuid := c.String("backup-set-uuid")
-	folderUuid := c.String("folder-uuid")
+	backupSetUUID := c.String("backup-set-uuid")
+	folderUUID := c.String("folder-uuid")
 	targetPath := c.String("path")
 
-	bucket, err := findBucket(c, connection, backupSetUuid, folderUuid)
+	bucket, err := findBucket(c, connection, backupSetUUID, folderUUID)
 	if err != nil {
-		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUuid, folderUuid))
+		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUUID, folderUUID))
 		log.Errorf("%s", err)
 		return err
 	}
@@ -184,8 +184,8 @@ func listDirectoryContents(c *cli.Context, connection connector.Connection) erro
 
 func recover(c *cli.Context, connection connector.Connection) error {
 	cacheDirectory := c.GlobalString("cache-directory")
-	backupSetUuid := c.String("backup-set-uuid")
-	folderUuid := c.String("folder-uuid")
+	backupSetUUID := c.String("backup-set-uuid")
+	folderUUID := c.String("folder-uuid")
 	sourcePath := c.String("source-path")
 	destinationPath := c.String("destination-path")
 
@@ -194,9 +194,9 @@ func recover(c *cli.Context, connection connector.Connection) error {
 		log.Errorf("%s", err)
 		return err
 	}
-	bucket, err := findBucket(c, connection, backupSetUuid, folderUuid)
+	bucket, err := findBucket(c, connection, backupSetUUID, folderUUID)
 	if err != nil {
-		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUuid, folderUuid))
+		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUUID, folderUUID))
 		log.Errorf("%s", err)
 		return err
 	}
@@ -212,31 +212,30 @@ func recover(c *cli.Context, connection connector.Connection) error {
 	if node == nil || node.IsTree.IsTrue() {
 		log.Errorf("unsupported right now. tree: %s", tree)
 		return nil
-	} else {
-		apsi, _ := arq.NewPackSetIndex(cacheDirectory, backupSet, bucket)
-		f, err := os.Create(destinationPath)
-		if err != nil {
-			log.Errorf("Failed to open destinationPath %s: %s", destinationPath, err)
-			return err
-		}
-		defer f.Close()
-		w := bufio.NewWriter(f)
-		for _, dataBlobKey := range node.DataBlobKeys {
-			log.Debugf("node dataBlobKey: %s", dataBlobKey)
-			var contents []byte
-			contents, err = apsi.GetBlobPackFile(backupSet, bucket, *dataBlobKey.SHA1)
-			if err != nil {
-				log.Debugf("Couldn't find data in packfile, look at objects.")
-				contents, err = arq.GetDataBlobKeyContentsFromObjects(*dataBlobKey.SHA1, bucket)
-				if err != nil {
-					log.Debugf("Couldn't find data in objects either!")
-					return err
-				}
-			}
-			w.Write(contents)
-		}
-		w.Flush()
 	}
+	apsi, _ := arq.NewPackSetIndex(cacheDirectory, backupSet, bucket)
+	f, err := os.Create(destinationPath)
+	if err != nil {
+		log.Errorf("Failed to open destinationPath %s: %s", destinationPath, err)
+		return err
+	}
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	for _, dataBlobKey := range node.DataBlobKeys {
+		log.Debugf("node dataBlobKey: %s", dataBlobKey)
+		var contents []byte
+		contents, err = apsi.GetBlobPackFile(backupSet, bucket, *dataBlobKey.SHA1)
+		if err != nil {
+			log.Debugf("Couldn't find data in packfile, look at objects.")
+			contents, err = arq.GetDataBlobKeyContentsFromObjects(*dataBlobKey.SHA1, bucket)
+			if err != nil {
+				log.Debugf("Couldn't find data in objects either!")
+				return err
+			}
+		}
+		w.Write(contents)
+	}
+	w.Flush()
 	return nil
 }
 

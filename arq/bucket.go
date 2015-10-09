@@ -68,7 +68,7 @@ func assignSHA1(source []byte, destination *[20]byte) error {
 }
 
 func (ab *ArqBucket) updateHeadSHA1() error {
-	key := path.Join(ab.ArqBackupSet.Uuid, "bucketdata", ab.UUID,
+	key := path.Join(ab.ArqBackupSet.UUID, "bucketdata", ab.UUID,
 		"refs", "heads", "master")
 	filepath, err := ab.ArqBackupSet.Connection.Get(key)
 	if err != nil {

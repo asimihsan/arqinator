@@ -1,6 +1,8 @@
 # arqinator
 
-Cross-platform restoration of Arq backups
+Cross-platform restoration of Arq backups.
+
+**This utility is not production ready. Please explicitly test it before assuming it will work for you.**
 
 ## Getting started
 

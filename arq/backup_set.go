@@ -16,7 +16,7 @@ import (
 
 type ArqBackupSet struct {
 	Connection      connector.Connection
-	Uuid            string
+	UUID            string
 	ComputerInfo    *ArqComputerInfo
 	Buckets         []*ArqBucket
 	BlobDecrypter   *crypto.CryptoState
@@ -46,7 +46,7 @@ func NewArqBackupSet(connection connector.Connection, password []byte, uuid stri
 	var err error
 	abs := ArqBackupSet{
 		Connection:   connection,
-		Uuid:         uuid,
+		UUID:         uuid,
 	}
 
 	// Regular objects (commits, trees, blobs) use a random "salt" stored in backup
@@ -80,8 +80,8 @@ func NewArqBackupSet(connection connector.Connection, password []byte, uuid stri
 }
 
 func (abs ArqBackupSet) String() string {
-	return fmt.Sprintf("{ArqBackupSet: Connection=%s, Uuid=%s, ComputerInfo=%s, Buckets=%s}",
-		abs.Connection, abs.Uuid, abs.ComputerInfo, abs.Buckets)
+	return fmt.Sprintf("{ArqBackupSet: Connection=%s, UUID=%s, ComputerInfo=%s, Buckets=%s}",
+		abs.Connection, abs.UUID, abs.ComputerInfo, abs.Buckets)
 }
 
 type ArqComputerInfo struct {
@@ -94,7 +94,7 @@ func (aci ArqComputerInfo) String() string {
 }
 
 func (abs *ArqBackupSet) getSalt() ([]byte, error) {
-	key := abs.Uuid + "/salt"
+	key := abs.UUID + "/salt"
 	filepath, err := abs.Connection.CachedGet(key)
 	if err != nil {
 		log.Debugln("Failed to get salt", err)
@@ -109,7 +109,7 @@ func (abs *ArqBackupSet) getSalt() ([]byte, error) {
 }
 
 func (abs *ArqBackupSet) getComputerInfo() (*ArqComputerInfo, error) {
-	key := abs.Uuid + "/computerinfo"
+	key := abs.UUID + "/computerinfo"
 	filepath, err := abs.Connection.CachedGet(key)
 	if err != nil {
 		log.Debugln("Failed to get computerinfo", err)
@@ -195,7 +195,7 @@ func (abs *ArqBackupSet) cachePackSet(ab *ArqBucket, prefix string) error {
 }
 
 func (abs *ArqBackupSet) getBuckets() ([]*ArqBucket, error) {
-	prefix := abs.Uuid + "/buckets"
+	prefix := abs.UUID + "/buckets"
 	objects, err := abs.Connection.ListObjectsAsAll(prefix)
 	if err != nil {
 		log.Debugln("Failed to get buckets for ArqBackupSet: ", err)

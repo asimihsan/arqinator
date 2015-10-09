@@ -32,7 +32,7 @@ func (c GoogleCloudStorageConnection) GetCacheDirectory() string {
 	return c.CacheDirectory
 }
 
-func getContext(jsonPrivateKeyFilepath string, projectId string) (context.Context, error) {
+func getContext(jsonPrivateKeyFilepath string, projectID string) (context.Context, error) {
 	jsonKey, err := ioutil.ReadFile(jsonPrivateKeyFilepath)
 	if err != nil {
 		return nil, err
@@ -41,13 +41,13 @@ func getContext(jsonPrivateKeyFilepath string, projectId string) (context.Contex
 	if err != nil {
 		return nil, err
 	}
-	ctx := cloud.NewContext(projectId, conf.Client(oauth2.NoContext))
+	ctx := cloud.NewContext(projectID, conf.Client(oauth2.NoContext))
 	return ctx, nil
 }
 
-func NewGoogleCloudStorageConnection(jsonPrivateKeyFilepath string, projectId string, bucketName string,
+func NewGoogleCloudStorageConnection(jsonPrivateKeyFilepath string, projectID string, bucketName string,
 	cacheDirectory string) (GoogleCloudStorageConnection, error) {
-	context, err := getContext(jsonPrivateKeyFilepath, projectId)
+	context, err := getContext(jsonPrivateKeyFilepath, projectID)
 	if err != nil {
 		return GoogleCloudStorageConnection{}, err
 	}
