@@ -215,13 +215,13 @@ func recover(c *cli.Context, connection connector.Connection) error {
 		return nil
 	}
 	apsi, _ := arq.NewPackSetIndex(cacheDirectory, backupSet, bucket)
-	f, err := os.Create(destinationPath)
+	f, err := os.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, node.Mode)
 	if err != nil {
 		log.Errorf("Failed to open destinationPath %s: %s", destinationPath, err)
 		return err
 	}
 	defer f.Close()
-	err = f.Truncate(node.UncompressedDataSize)
+	err = f.Truncate(int64(node.UncompressedDataSize))
 	if err != nil {
 		log.Errorf("Failed to pre-allocate size of file %s: %s", destinationPath, err)
 	}
