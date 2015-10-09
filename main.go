@@ -17,6 +17,7 @@ import (
 	"github.com/asimihsan/arqinator/arq"
 	"github.com/asimihsan/arqinator/connector"
 	"runtime"
+	"io"
 )
 
 func cliSetup(c *cli.Context) error {
@@ -221,21 +222,13 @@ func recover(c *cli.Context, connection connector.Connection) error {
 	}
 	defer f.Close()
 	w := bufio.NewWriter(f)
-	for _, dataBlobKey := range node.DataBlobKeys {
-		log.Debugf("node dataBlobKey: %s", dataBlobKey)
-		var contents []byte
-		contents, err = apsi.GetBlobPackFile(backupSet, bucket, *dataBlobKey.SHA1)
-		if err != nil {
-			log.Debugf("Couldn't find data in packfile, look at objects.")
-			contents, err = arq.GetDataBlobKeyContentsFromObjects(*dataBlobKey.SHA1, bucket)
-			if err != nil {
-				log.Debugf("Couldn't find data in objects either!")
-				return err
-			}
-		}
-		w.Write(contents)
+	defer w.Flush()
+	r, err := arq.GetReaderForBlobKeys(node.DataBlobKeys, apsi, backupSet, bucket)
+	if err != nil {
+		log.Errorf("Failed during GetReaderForBlobKeys for node %s: %s", node, err)
+		return err
 	}
-	w.Flush()
+	io.Copy(w, r)
 	return nil
 }
 
