@@ -151,7 +151,7 @@ $ arqinator \
 #### Google Cloud Storage
 
 ````
-$ ARQ_ENCRYPTION_PASSWORD=password arqinator \
+$ arqinator \
     --backup-type googlecloudstorage \
     --gcs-json-private-key-filepath /Users/ai/keys/gcs.json \
     --gcs-project-id midyear-courage-109219 \
