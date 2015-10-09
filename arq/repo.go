@@ -1,6 +1,7 @@
 package arq
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"encoding/hex"
@@ -10,25 +11,90 @@ import (
 	"github.com/asimihsan/arqinator/arq/types"
 	"io"
 	"io/ioutil"
+	"os"
 	"path"
+	"path/filepath"
 )
 
-type BlobKeysReader struct {
-	blobKeys  []*arq_types.BlobKey
-	apsi      *ArqPackSetIndex
-	backupSet *ArqBackupSet
-	bucket    *ArqBucket
-	currentBlobKeyIndex int
-	currentDataReader io.Reader
+func getWriterForFile(destinationPath string, mode os.FileMode, size int64) (*os.File, *bufio.Writer, error) {
+	f, err := os.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
+	if err != nil {
+		log.Errorf("Failed to open destinationPath %s: %s", destinationPath, err)
+		return nil, nil, err
+	}
+	err = f.Truncate(int64(size))
+	if err != nil {
+		log.Errorf("Failed to pre-allocate size of file %s: %s", destinationPath, err)
+		return nil, nil, err
+	}
+	w := bufio.NewWriter(f)
+	return f, w, nil
 }
 
-func GetReaderForBlobKeys(blobKeys []*arq_types.BlobKey, apsi *ArqPackSetIndex, backupSet *ArqBackupSet,
+func DownloadNode(node *arq_types.Node, cacheDirectory string, backupSet *ArqBackupSet,
+	bucket *ArqBucket, sourcePath string, destinationPath string) error {
+	log.Debugf("DownloadNode entry. sourcePath: %s, destinationPath: %s, node: %s", sourcePath, destinationPath, node)
+	apsi, _ := NewPackSetIndex(cacheDirectory, backupSet, bucket)
+	f, w, err := getWriterForFile(destinationPath, node.Mode, int64(node.UncompressedDataSize))
+	if err != nil {
+		log.Errorf("Failed during NewWriterForFile for node %s: %s", node, err)
+		return err
+	}
+	defer f.Close()
+	defer w.Flush()
+	r, err := getReaderForBlobKeys(node.DataBlobKeys, apsi, backupSet, bucket)
+	if err != nil {
+		log.Errorf("Failed during GetReaderForBlobKeys for node %s: %s", node, err)
+		return err
+	}
+	io.Copy(w, r)
+	log.Debugf("DownloadNode exit. destinationPath: %s, node: %s", destinationPath, node)
+	return nil
+}
+
+func DownloadTree(tree *arq_types.Tree, cacheDirectory string, backupSet *ArqBackupSet,
+	bucket *ArqBucket, sourcePath string, destinationPath string) error {
+	log.Debugf("DownloadTree entry. sourcePath: %s, destinationPath: %s, tree: %s", sourcePath, destinationPath, tree)
+	if err := os.MkdirAll(destinationPath, tree.Mode); err != nil {
+		log.Errorf("DownloadTree failed during MkdirAll %s: %s", destinationPath, err)
+	}
+	for _, node := range tree.Nodes {
+		subSourcePath := filepath.Join(sourcePath, string(node.Name.Data))
+		subDestinationPath := filepath.Join(destinationPath, string(node.Name.Data))
+		subTree, subNode, err := FindNode(cacheDirectory, backupSet, bucket, subSourcePath)
+		if err != nil {
+			log.Errorf("DownloadTree failed FindNode: %s", err)
+			return err
+		}
+		if subNode.IsTree.IsTrue() {
+			err = DownloadTree(subTree, cacheDirectory, backupSet, bucket, subSourcePath, subDestinationPath)
+		} else {
+			err = DownloadNode(subNode, cacheDirectory, backupSet, bucket, subSourcePath, subDestinationPath)
+		}
+		if err != nil {
+			log.Errorf("DownloadTree failed during subNode %s: %s. Will continue!", subNode, err)
+		}
+	}
+	log.Debugf("DownloadTree exit. destinationPath: %s, tree: %s", destinationPath, tree)
+	return nil
+}
+
+type BlobKeysReader struct {
+	blobKeys            []*arq_types.BlobKey
+	apsi                *ArqPackSetIndex
+	backupSet           *ArqBackupSet
+	bucket              *ArqBucket
+	currentBlobKeyIndex int
+	currentDataReader   io.Reader
+}
+
+func getReaderForBlobKeys(blobKeys []*arq_types.BlobKey, apsi *ArqPackSetIndex, backupSet *ArqBackupSet,
 	bucket *ArqBucket) (*BlobKeysReader, error) {
 	return &BlobKeysReader{
-		blobKeys: blobKeys,
-		apsi: apsi,
-		backupSet: backupSet,
-		bucket: bucket,
+		blobKeys:            blobKeys,
+		apsi:                apsi,
+		backupSet:           backupSet,
+		bucket:              bucket,
 		currentBlobKeyIndex: 0,
 	}, nil
 }

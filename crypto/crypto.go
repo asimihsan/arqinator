@@ -46,6 +46,10 @@ func (s *CryptoState) Decrypt(data []byte) ([]byte, error) {
 		err := errors.New("Decrypt data length not multiple of AES block size")
 		return nil, err
 	}
+	if len(data) == 0 {
+		err := errors.New("Decrypt data length is zero, not expected")
+		return nil, err
+	}
 	dec.CryptBlocks(data, data)
 	//log.Debugf("% x\n", data)
 	//log.Debugf("%s\n", data)
