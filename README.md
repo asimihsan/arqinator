@@ -21,15 +21,22 @@ you're using for encrypting your Arq backups:
 ARQ_ENCRYPTION_PASSWORD=mysecretpassword
 ```
 
+#### S3
+
 Set the following environment variables depending on which backup method you
 are using:
-
-#### S3
 
 ```
 AWS_ACCESS_KEY_ID=AKID1234567890
 AWS_SECRET_ACCESS_KEY=MY-SECRET-KEY
 ```
+
+#### Google Cloud Storage
+
+-   Go to the Google Developers Console: https://console.developers.google.com//project/_/apiui/credential
+-   Download a JSON private key file using: https://goo.gl/SK5Rb7
+-   To determine your project ID, click on the gear in the top right, and click "Project information"
+-   To determine your bucket name, on the left navigation pane go to Storage - Cloud Storage - Browser, then find your bucket.
 
 ### 2. List backup sets
 
