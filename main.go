@@ -11,12 +11,12 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/mitchellh/go-homedir"
 
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/asimihsan/arqinator/arq"
 	"github.com/asimihsan/arqinator/connector"
 	"runtime"
-	"bufio"
 )
 
 func cliSetup(c *cli.Context) error {
@@ -29,24 +29,25 @@ func cliSetup(c *cli.Context) error {
 	return nil
 }
 
-func awsSetup(c *cli.Context) (*connector.S3Connection, error) {
+func awsSetup(c *cli.Context) (connector.Connection, error) {
 	region := c.GlobalString("s3-region")
 	cacheDirectory := c.GlobalString("cache-directory")
+	s3BucketName := c.GlobalString("s3-bucket-name")
 
 	defaults.DefaultConfig.Region = aws.String(region)
 	svc := s3.New(nil)
 	opts := &s3manager.DownloadOptions{
 		S3:          svc,
-		Concurrency: runtime.GOMAXPROCS(0)}
-	s3Connection := connector.NewS3Connection(svc, cacheDirectory, opts)
+		Concurrency: runtime.GOMAXPROCS(0),
+	}
+	s3Connection := connector.NewS3Connection(svc, cacheDirectory, s3BucketName, opts)
 	return s3Connection, nil
 }
 
-func getArqBackupSets(c *cli.Context, s3Connection *connector.S3Connection) ([]*arq.ArqBackupSet, error) {
-	s3BucketName := c.GlobalString("s3-bucket-name")
+func getArqBackupSets(c *cli.Context, connection connector.Connection) ([]*arq.ArqBackupSet, error) {
 	password := []byte(os.Getenv("ARQ_ENCRYPTION_PASSWORD"))
 
-	arqBackupSets, err := arq.GetArqBackupSets(s3BucketName, s3Connection, password)
+	arqBackupSets, err := arq.GetArqBackupSets(connection, password)
 	if err != nil {
 		log.Debugf("Error during getArqBackupSets: %s", err)
 		return nil, err
@@ -54,8 +55,8 @@ func getArqBackupSets(c *cli.Context, s3Connection *connector.S3Connection) ([]*
 	return arqBackupSets, nil
 }
 
-func listBackupSets(c *cli.Context, s3Connection *connector.S3Connection) error {
-	arqBackupSets, err := getArqBackupSets(c, s3Connection)
+func listBackupSets(c *cli.Context, connection connector.Connection) error {
+	arqBackupSets, err := getArqBackupSets(c, connection)
 	if err != nil {
 		log.Debugf("Error during listBackupSets: %s", err)
 		return nil
@@ -74,8 +75,8 @@ func listBackupSets(c *cli.Context, s3Connection *connector.S3Connection) error 
 	return nil
 }
 
-func findBucket(c *cli.Context, s3Connection *connector.S3Connection, backupSetUuid string, folderUuid string) (*arq.ArqBucket, error) {
-	arqBackupSets, err := getArqBackupSets(c, s3Connection)
+func findBucket(c *cli.Context, connection connector.Connection, backupSetUuid string, folderUuid string) (*arq.ArqBucket, error) {
+	arqBackupSets, err := getArqBackupSets(c, connection)
 	if err != nil {
 		log.Debugf("Error during findBucket: %s", err)
 		return nil, err
@@ -98,13 +99,13 @@ func findBucket(c *cli.Context, s3Connection *connector.S3Connection, backupSetU
 	return bucket, nil
 }
 
-func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection) error {
+func listDirectoryContents(c *cli.Context, connection connector.Connection) error {
 	cacheDirectory := c.GlobalString("cache-directory")
 	backupSetUuid := c.String("backup-set-uuid")
 	folderUuid := c.String("folder-uuid")
 	targetPath := c.String("path")
 
-	bucket, err := findBucket(c, s3Connection, backupSetUuid, folderUuid)
+	bucket, err := findBucket(c, connection, backupSetUuid, folderUuid)
 	if err != nil {
 		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUuid, folderUuid))
 		log.Errorf("%s", err)
@@ -147,7 +148,7 @@ func listDirectoryContents(c *cli.Context, s3Connection *connector.S3Connection)
 	return nil
 }
 
-func recover(c *cli.Context, s3Connection *connector.S3Connection) error {
+func recover(c *cli.Context, connection connector.Connection) error {
 	cacheDirectory := c.GlobalString("cache-directory")
 	backupSetUuid := c.String("backup-set-uuid")
 	folderUuid := c.String("folder-uuid")
@@ -159,7 +160,7 @@ func recover(c *cli.Context, s3Connection *connector.S3Connection) error {
 		log.Errorf("%s", err)
 		return err
 	}
-	bucket, err := findBucket(c, s3Connection, backupSetUuid, folderUuid)
+	bucket, err := findBucket(c, connection, backupSetUuid, folderUuid)
 	if err != nil {
 		err := errors.New(fmt.Sprintf("Couldn't find backup set UUID %s, folder UUID %s.", backupSetUuid, folderUuid))
 		log.Errorf("%s", err)
@@ -204,7 +205,6 @@ func recover(c *cli.Context, s3Connection *connector.S3Connection) error {
 	}
 	return nil
 }
-
 
 func main() {
 	defaultCacheDirectory, err := homedir.Expand("~/.arqinator_cache")

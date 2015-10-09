@@ -16,18 +16,29 @@ import (
 
 type S3Connection struct {
 	Connection     *s3.S3
+	BucketName     string
 	CacheDirectory string
 	Downloader     *s3manager.Downloader
 }
 
-func NewS3Connection(connection *s3.S3, cacheDirectory string,
-	options *s3manager.DownloadOptions) *S3Connection {
+func (c S3Connection) String() string {
+	return fmt.Sprintf("{S3Connection: BucketName=%s, CacheDirectory=%s",
+		c.BucketName, c.CacheDirectory)
+}
+
+func NewS3Connection(connection *s3.S3, cacheDirectory string, s3BucketName string,
+	options *s3manager.DownloadOptions) S3Connection {
 	conn := S3Connection{
 		Connection:     connection,
+		BucketName:     s3BucketName,
 		CacheDirectory: cacheDirectory,
 	}
 	conn.Downloader = s3manager.NewDownloader(options)
-	return &conn
+	return conn
+}
+
+func (c S3Connection) GetCacheDirectory() string {
+	return c.CacheDirectory
 }
 
 type S3Object struct {
@@ -38,21 +49,25 @@ func (s3Obj S3Object) String() string {
 	return fmt.Sprintf("{S3Object: S3Object=%s}", s3Obj.S3FullPath)
 }
 
-func (conn *S3Connection) ListObjectsAsFolders(bucket string, prefix string) ([]S3Object, error) {
-	return conn.ListObjects(bucket, prefix, "/")
+func (s3Obj S3Object) GetPath() string {
+	return s3Obj.S3FullPath
 }
 
-func (conn *S3Connection) ListObjectsAsAll(bucket string, prefix string) ([]S3Object, error) {
-	return conn.ListObjects(bucket, prefix, ",")
+func (conn S3Connection) ListObjectsAsFolders(prefix string) ([]Object, error) {
+	return conn.listObjects(prefix, "/")
 }
 
-func (conn *S3Connection) ListObjects(bucket string, prefix string, delimiter string) ([]S3Object, error) {
-	s3Objs := make([]S3Object, 0)
+func (conn S3Connection) ListObjectsAsAll(prefix string) ([]Object, error) {
+	return conn.listObjects(prefix, ",")
+}
+
+func (conn S3Connection) listObjects(prefix string, delimiter string) ([]Object, error) {
+	s3Objs := make([]Object, 0)
 	moreResults := false
 	nextMarker := aws.String("")
 	for {
 		input := s3.ListObjectsInput{
-			Bucket:    aws.String(bucket),
+			Bucket:    aws.String(conn.BucketName),
 			Prefix:    aws.String(prefix),
 			Delimiter: aws.String(delimiter),
 		}
@@ -61,10 +76,10 @@ func (conn *S3Connection) ListObjects(bucket string, prefix string, delimiter st
 		}
 		result, err := conn.Connection.ListObjects(&input)
 		if err != nil {
-			log.Debugln("Failed to ListObjects for bucket %s, prefix %s: %s", bucket, prefix, err)
+			log.Debugln("Failed to ListObjects for bucket %s, prefix %s: %s", conn.BucketName, prefix, err)
 			return nil, err
 		}
-		if delimiter == "/" {  // folders
+		if delimiter == "/" { // folders
 			for _, commonPrefix := range result.CommonPrefixes {
 				s3Obj := S3Object{
 					S3FullPath: strings.TrimSuffix(*commonPrefix.Prefix, "/"),
@@ -90,8 +105,8 @@ func (conn *S3Connection) ListObjects(bucket string, prefix string, delimiter st
 	return s3Objs, nil
 }
 
-func (conn *S3Connection) getCacheFilepath(key string) (string, error) {
-	cacheFilepath := conn.CacheDirectory + "/" + key
+func (conn S3Connection) getCacheFilepath(key string) (string, error) {
+	cacheFilepath := filepath.Join(conn.GetCacheDirectory(), key)
 	cacheFilepath, err := filepath.Abs(cacheFilepath)
 	if err != nil {
 		log.Debugf("Failed to make cacheFilepath %s absolute: %s",
@@ -101,7 +116,7 @@ func (conn *S3Connection) getCacheFilepath(key string) (string, error) {
 	return cacheFilepath, nil
 }
 
-func (conn *S3Connection) CachedGet(bucket string, key string) (string, error) {
+func (conn S3Connection) CachedGet(key string) (string, error) {
 	cacheFilepath, err := conn.getCacheFilepath(key)
 	if err != nil {
 		log.Debugf("Failed to getCacheFilepath in CachedGet: %s", err)
@@ -110,7 +125,7 @@ func (conn *S3Connection) CachedGet(bucket string, key string) (string, error) {
 	if _, err := os.Stat(cacheFilepath); err == nil {
 		return cacheFilepath, nil
 	}
-	cacheFilepath, err = conn.Get(bucket, key)
+	cacheFilepath, err = conn.Get(key)
 	if err != nil {
 		log.Debugln("Failed to cachedGet key: ", key)
 		return cacheFilepath, err
@@ -118,7 +133,7 @@ func (conn *S3Connection) CachedGet(bucket string, key string) (string, error) {
 	return cacheFilepath, nil
 }
 
-func (conn *S3Connection) Get(bucket string, key string) (string, error) {
+func (conn S3Connection) Get(key string) (string, error) {
 	cacheFilepath, err := conn.getCacheFilepath(key)
 	if err != nil {
 		log.Debugf("Failed to getCacheFilepath in Get: %s", err)
@@ -138,7 +153,7 @@ func (conn *S3Connection) Get(bucket string, key string) (string, error) {
 	}
 	defer w.Close()
 	_, err = conn.Downloader.Download(w, &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
+		Bucket: aws.String(conn.BucketName),
 		Key:    aws.String(key),
 	})
 	time.Sleep(100 * time.Millisecond)

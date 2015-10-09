@@ -17,7 +17,7 @@ func GetDataBlobKeyContentsFromObjects(SHA1 [20]byte, bucket *ArqBucket) ([]byte
 	backupSet := bucket.ArqBackupSet
 	key := path.Join(backupSet.Uuid, "objects", SHA1String)
 	log.Debugf("key: %s", key)
-	dataFilepath, err := backupSet.Connection.CachedGet(backupSet.S3BucketName, key)
+	dataFilepath, err := backupSet.Connection.CachedGet(key)
 	if err != nil {
 		err2 := errors.New(fmt.Sprintf("downloadDataFromDataBlobKey: failed to download SHA1 %s: %s", SHA1String, err))
 		log.Errorf("%s", err2)

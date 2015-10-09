@@ -15,8 +15,7 @@ import (
 )
 
 type ArqBackupSet struct {
-	S3BucketName    string
-	Connection      *connector.S3Connection
+	Connection      connector.Connection
 	Uuid            string
 	ComputerInfo    *ArqComputerInfo
 	Buckets         []*ArqBucket
@@ -24,18 +23,18 @@ type ArqBackupSet struct {
 	BucketDecrypter *crypto.CryptoState
 }
 
-func GetArqBackupSets(s3BucketName string, connection *connector.S3Connection, password []byte) ([]*ArqBackupSet, error) {
+func GetArqBackupSets(connection connector.Connection, password []byte) ([]*ArqBackupSet, error) {
 	prefix := ""
-	s3Objs, err := connection.ListObjectsAsFolders(s3BucketName, prefix)
+	objects, err := connection.ListObjectsAsFolders(prefix)
 	if err != nil {
 		log.Debugln("Failed to get buckets for GetArqBackupSets: ", err)
 		return nil, err
 	}
 	arqBackupSets := make([]*ArqBackupSet, 0)
-	for _, s3Obj := range s3Objs {
-		arqBackupSet, err := NewArqBackupSet(s3BucketName, connection, password, s3Obj.S3FullPath)
+	for _, object := range objects {
+		arqBackupSet, err := NewArqBackupSet(connection, password, object.GetPath())
 		if err != nil {
-			log.Debugf("Error during GetArqBackupSets for s3Obj %s: %s", s3Obj, err)
+			log.Debugf("Error during GetArqBackupSets for object %s: %s", object, err)
 			continue
 		}
 		arqBackupSets = append(arqBackupSets, arqBackupSet)
@@ -43,10 +42,9 @@ func GetArqBackupSets(s3BucketName string, connection *connector.S3Connection, p
 	return arqBackupSets, nil
 }
 
-func NewArqBackupSet(s3BucketName string, connection *connector.S3Connection, password []byte, uuid string) (*ArqBackupSet, error) {
+func NewArqBackupSet(connection connector.Connection, password []byte, uuid string) (*ArqBackupSet, error) {
 	var err error
 	abs := ArqBackupSet{
-		S3BucketName: s3BucketName,
 		Connection:   connection,
 		Uuid:         uuid,
 	}
@@ -82,8 +80,8 @@ func NewArqBackupSet(s3BucketName string, connection *connector.S3Connection, pa
 }
 
 func (abs ArqBackupSet) String() string {
-	return fmt.Sprintf("{ArqBackupSet: S3BucketName=%s, Uuid=%s, ComputerInfo=%s, Buckets=%s}",
-		abs.S3BucketName, abs.Uuid, abs.ComputerInfo, abs.Buckets)
+	return fmt.Sprintf("{ArqBackupSet: Connection=%s, Uuid=%s, ComputerInfo=%s, Buckets=%s}",
+		abs.Connection, abs.Uuid, abs.ComputerInfo, abs.Buckets)
 }
 
 type ArqComputerInfo struct {
@@ -97,7 +95,7 @@ func (aci ArqComputerInfo) String() string {
 
 func (abs *ArqBackupSet) getSalt() ([]byte, error) {
 	key := abs.Uuid + "/salt"
-	filepath, err := abs.Connection.CachedGet(abs.S3BucketName, key)
+	filepath, err := abs.Connection.CachedGet(key)
 	if err != nil {
 		log.Debugln("Failed to get salt", err)
 		return nil, err
@@ -112,7 +110,7 @@ func (abs *ArqBackupSet) getSalt() ([]byte, error) {
 
 func (abs *ArqBackupSet) getComputerInfo() (*ArqComputerInfo, error) {
 	key := abs.Uuid + "/computerinfo"
-	filepath, err := abs.Connection.CachedGet(abs.S3BucketName, key)
+	filepath, err := abs.Connection.CachedGet(key)
 	if err != nil {
 		log.Debugln("Failed to get computerinfo", err)
 		return nil, err
@@ -164,25 +162,25 @@ func (abs *ArqBackupSet) cacheTreePackSet(ab *ArqBucket) error {
 }
 
 func (abs *ArqBackupSet) cachePackSet(ab *ArqBucket, prefix string) error {
-	s3Objs, err := abs.Connection.ListObjectsAsAll(abs.S3BucketName, prefix)
+	s3Objs, err := abs.Connection.ListObjectsAsAll(prefix)
 	if err != nil {
 		log.Debugln("Failed to cacheTreePackSet for bucket: ", ab)
 		log.Debugln(err)
 		return err
 	}
-	inputs := make(chan *connector.S3Object, len(s3Objs))
+	inputs := make(chan connector.Object, len(s3Objs))
 	for i := range s3Objs {
-		inputs <- &s3Objs[i]
+		inputs <- s3Objs[i]
 	}
 	close(inputs)
 	c := make(chan int, runtime.GOMAXPROCS(0)*2)
 	for i := 0; i < cap(c); i++ {
 		go func() {
-			for inputS3Obj := range inputs {
-				if strings.HasSuffix(inputS3Obj.S3FullPath, ".index") {
-					_, err := abs.Connection.CachedGet(abs.S3BucketName, inputS3Obj.S3FullPath)
+			for inputObject := range inputs {
+				if strings.HasSuffix(inputObject.GetPath(), ".index") {
+					_, err := abs.Connection.CachedGet(inputObject.GetPath())
 					if err != nil {
-						log.Debugln("cacheTreePackSet failed to get S3 object: ", inputS3Obj)
+						log.Debugln("cacheTreePackSet failed to get object: ", inputObject)
 						log.Debugln(err)
 					}
 				}
@@ -198,16 +196,16 @@ func (abs *ArqBackupSet) cachePackSet(ab *ArqBucket, prefix string) error {
 
 func (abs *ArqBackupSet) getBuckets() ([]*ArqBucket, error) {
 	prefix := abs.Uuid + "/buckets"
-	s3Objs, err := abs.Connection.ListObjectsAsAll(abs.S3BucketName, prefix)
+	objects, err := abs.Connection.ListObjectsAsAll(prefix)
 	if err != nil {
 		log.Debugln("Failed to get buckets for ArqBackupSet: ", err)
 		return nil, err
 	}
 	buckets := make([]*ArqBucket, 0)
-	for i := range s3Objs {
-		bucket, err := NewArqBucket(&s3Objs[i], abs)
+	for _, object := range objects {
+		bucket, err := NewArqBucket(object, abs)
 		if err != nil {
-			log.Debugln("Failed to get ArqBucket for s3Obj: ", s3Objs[i])
+			log.Debugln("Failed to get ArqBucket for object: ", object)
 			log.Debugln(err)
 			return nil, err
 		}
