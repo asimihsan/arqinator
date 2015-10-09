@@ -11,13 +11,11 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/mitchellh/go-homedir"
 
-	"bufio"
 	"errors"
 	"fmt"
 	"github.com/asimihsan/arqinator/arq"
 	"github.com/asimihsan/arqinator/connector"
 	"runtime"
-	"io"
 )
 
 func cliSetup(c *cli.Context) error {
@@ -210,29 +208,15 @@ func recover(c *cli.Context, connection connector.Connection) error {
 		log.Errorf("Failed to find source path %s: %s", sourcePath, err)
 		return err
 	}
-	if node == nil || node.IsTree.IsTrue() {
-		log.Errorf("unsupported right now. tree: %s", tree)
-		return nil
+	if node.IsTree.IsTrue() {
+		err = arq.DownloadTree(tree, cacheDirectory, backupSet, bucket, sourcePath, destinationPath)
+	} else {
+		err = arq.DownloadNode(node, cacheDirectory, backupSet, bucket, sourcePath, destinationPath)
 	}
-	apsi, _ := arq.NewPackSetIndex(cacheDirectory, backupSet, bucket)
-	f, err := os.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, node.Mode)
 	if err != nil {
-		log.Errorf("Failed to open destinationPath %s: %s", destinationPath, err)
+		log.Errorf("recover failed to DownloadNodeAsFile: %s", err)
 		return err
 	}
-	defer f.Close()
-	err = f.Truncate(int64(node.UncompressedDataSize))
-	if err != nil {
-		log.Errorf("Failed to pre-allocate size of file %s: %s", destinationPath, err)
-	}
-	w := bufio.NewWriter(f)
-	defer w.Flush()
-	r, err := arq.GetReaderForBlobKeys(node.DataBlobKeys, apsi, backupSet, bucket)
-	if err != nil {
-		log.Errorf("Failed during GetReaderForBlobKeys for node %s: %s", node, err)
-		return err
-	}
-	io.Copy(w, r)
 	return nil
 }
 

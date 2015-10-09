@@ -167,6 +167,4 @@ $ arqinator \
 
 ## TODO
 
-TODO implement recover for folders as well
-
 TODO soft links, permissions, users, etc.
