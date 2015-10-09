@@ -15,7 +15,7 @@ import (
 )
 
 type ArqBucket struct {
-	S3Obj        *connector.S3Object
+	Object       connector.Object
 	UUID         string
 	LocalPath    string
 	ArqBackupSet *ArqBackupSet
@@ -24,14 +24,13 @@ type ArqBucket struct {
 
 func (ab ArqBucket) String() string {
 	return fmt.Sprintf("{ArqBucket: UUID=%s, LocalPath=%s, S3Obj=%s, HeadSHA1=%s}",
-		ab.UUID, ab.LocalPath, ab.S3Obj, hex.EncodeToString(ab.HeadSHA1[:]))
+		ab.UUID, ab.LocalPath, ab.Object, hex.EncodeToString(ab.HeadSHA1[:]))
 }
 
 func (ab *ArqBucket) parsePlist() error {
-	filepath, err := ab.ArqBackupSet.Connection.CachedGet(
-		ab.ArqBackupSet.S3BucketName, ab.S3Obj.S3FullPath)
+	filepath, err := ab.ArqBackupSet.Connection.CachedGet(ab.Object.GetPath())
 	if err != nil {
-		log.Debugln("Failed during NewArqBucket for s3Obj: ", ab.S3Obj)
+		log.Debugln("Failed during NewArqBucket for s3Obj: ", ab.Object)
 		log.Debugln(err)
 		return err
 	}
@@ -71,8 +70,7 @@ func assignSHA1(source []byte, destination *[20]byte) error {
 func (ab *ArqBucket) updateHeadSHA1() error {
 	key := path.Join(ab.ArqBackupSet.Uuid, "bucketdata", ab.UUID,
 		"refs", "heads", "master")
-	filepath, err := ab.ArqBackupSet.Connection.Get(
-		ab.ArqBackupSet.S3BucketName, key)
+	filepath, err := ab.ArqBackupSet.Connection.Get(key)
 	if err != nil {
 		log.Debugf("Failed during ArqBucket (%s) updateHeadSHA1 get: %s",
 			ab, err)
@@ -98,9 +96,9 @@ func (ab *ArqBucket) updateHeadSHA1() error {
 	return nil
 }
 
-func NewArqBucket(s3Obj *connector.S3Object, abs *ArqBackupSet) (*ArqBucket, error) {
-	bucket := ArqBucket{S3Obj: s3Obj, ArqBackupSet: abs}
-	bucket.UUID = path.Base(s3Obj.S3FullPath)
+func NewArqBucket(object connector.Object, abs *ArqBackupSet) (*ArqBucket, error) {
+	bucket := ArqBucket{Object: object, ArqBackupSet: abs}
+	bucket.UUID = path.Base(object.GetPath())
 	err := bucket.parsePlist()
 	if err != nil {
 		err2 := errors.New(fmt.Sprintf("Failed during NewArqBucket: %s", err))

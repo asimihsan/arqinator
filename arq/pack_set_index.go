@@ -449,7 +449,7 @@ func GetObjectFromBlobPackFile(abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexO
 }
 
 func GetObjectFromPackFile(key string, abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexObject, packName string) (*PackFileObject, error) {
-	packFilepath, err := abs.Connection.CachedGet(abs.S3BucketName, key)
+	packFilepath, err := abs.Connection.CachedGet(key)
 	if err != nil {
 		log.Debugf("GetObjectFromTreePackFile failed to get key %s: %s", key, err)
 		return nil, err
