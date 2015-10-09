@@ -20,8 +20,11 @@ import (
 )
 
 func cliSetup(c *cli.Context) error {
-	if c.GlobalString("backup-type") != "s3" {
-		return errors.New("Currently only support backup-type of 's3'")
+	switch c.GlobalString("backup-type") {
+	case "s3":
+	case "googlecloudstorage":
+	default:
+		return errors.New("Currently only support backup-type of: ['s3', 'googlecloudstorage']")
 	}
 	if c.GlobalBool("verbose") {
 		log.SetLevel(log.DebugLevel)
@@ -31,8 +34,8 @@ func cliSetup(c *cli.Context) error {
 
 func awsSetup(c *cli.Context) (connector.Connection, error) {
 	region := c.GlobalString("s3-region")
-	cacheDirectory := c.GlobalString("cache-directory")
 	s3BucketName := c.GlobalString("s3-bucket-name")
+	cacheDirectory := c.GlobalString("cache-directory")
 
 	defaults.DefaultConfig.Region = aws.String(region)
 	svc := s3.New(nil)
@@ -42,6 +45,37 @@ func awsSetup(c *cli.Context) (connector.Connection, error) {
 	}
 	s3Connection := connector.NewS3Connection(svc, cacheDirectory, s3BucketName, opts)
 	return s3Connection, nil
+}
+
+func googleCloudStorageSetup(c *cli.Context) (connector.Connection, error) {
+	jsonPrivateKeyFilepath := c.GlobalString("gcs-json-private-key-filepath")
+	projectId := c.GlobalString("gcs-project-id")
+	bucketName := c.GlobalString("gcs-bucket-name")
+	cacheDirectory := c.GlobalString("cache-directory")
+
+	connection, err := connector.NewGoogleCloudStorageConnection(jsonPrivateKeyFilepath, projectId, bucketName, cacheDirectory)
+	if err != nil {
+		return connection, err
+	}
+	return connection, nil
+}
+
+func getConnection(c *cli.Context) (connector.Connection, error) {
+	var (
+		connection connector.Connection
+		err        error
+	)
+	switch c.GlobalString("backup-type") {
+	case "s3":
+		connection, err = awsSetup(c)
+	case "googlecloudstorage":
+		connection, err = googleCloudStorageSetup(c)
+	}
+	if err != nil {
+		log.Debugf("%s", err)
+		return nil, err
+	}
+	return connection, nil
 }
 
 func getArqBackupSets(c *cli.Context, connection connector.Connection) ([]*arq.ArqBackupSet, error) {
@@ -219,7 +253,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "backup-type",
-			Usage: "Method used for backup, e.g. 's3'.",
+			Usage: "Method used for backup, one of: ['s3', 'googlecloudstorage']",
 		},
 		cli.StringFlag{
 			Name:  "s3-region",
@@ -228,6 +262,18 @@ func main() {
 		cli.StringFlag{
 			Name:  "s3-bucket-name",
 			Usage: "AWS S3 bucket name, e.g. 'arq-akiaabdefg-us-west-2'.",
+		},
+		cli.StringFlag{
+			Name:  "gcs-json-private-key-filepath",
+			Usage: "Google Cloud Storage JSON private key filepath. See: https://goo.gl/SK5Rb7",
+		},
+		cli.StringFlag{
+			Name:  "gcs-project-id",
+			Usage: "Google Cloud Storage project ID.",
+		},
+		cli.StringFlag{
+			Name:  "gcs-bucket-name",
+			Usage: "Google Cloud Storage bucket name.",
 		},
 		cli.StringFlag{
 			Name:  "cache-directory",
@@ -249,16 +295,16 @@ func main() {
 			Usage: "List backup sets in this account.",
 			Action: func(c *cli.Context) {
 				if err := cliSetup(c); err != nil {
-					log.Debugf("%s", err)
+					log.Errorf("%s", err)
 					return
 				}
-				s3Connection, err := awsSetup(c)
+				connection, err := getConnection(c)
 				if err != nil {
-					log.Debugf("%s", err)
+					log.Errorf("%s", err)
 					return
 				}
-				if err := listBackupSets(c, s3Connection); err != nil {
-					log.Debugf("%s", err)
+				if err := listBackupSets(c, connection); err != nil {
+					log.Errorf("%s", err)
 					return
 				}
 			},
@@ -282,16 +328,16 @@ func main() {
 			},
 			Action: func(c *cli.Context) {
 				if err := cliSetup(c); err != nil {
-					log.Debugf("%s", err)
+					log.Errorf("%s", err)
 					return
 				}
-				s3Connection, err := awsSetup(c)
+				connection, err := getConnection(c)
 				if err != nil {
-					log.Debugf("%s", err)
+					log.Errorf("%s", err)
 					return
 				}
-				if err := listDirectoryContents(c, s3Connection); err != nil {
-					log.Debugf("%s", err)
+				if err := listDirectoryContents(c, connection); err != nil {
+					log.Errorf("%s", err)
 					return
 				}
 			},
@@ -319,16 +365,16 @@ func main() {
 			},
 			Action: func(c *cli.Context) {
 				if err := cliSetup(c); err != nil {
-					log.Debugf("%s", err)
+					log.Errorf("%s", err)
 					return
 				}
-				s3Connection, err := awsSetup(c)
+				connection, err := getConnection(c)
 				if err != nil {
-					log.Debugf("%s", err)
+					log.Errorf("%s", err)
 					return
 				}
-				if err := recover(c, s3Connection); err != nil {
-					log.Debugf("%s", err)
+				if err := recover(c, connection); err != nil {
+					log.Errorf("%s", err)
 					return
 				}
 			},

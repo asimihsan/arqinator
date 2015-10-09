@@ -33,6 +33,8 @@ AWS_SECRET_ACCESS_KEY=MY-SECRET-KEY
 
 ### 2. List backup sets
 
+#### S3
+
 ```
 $ arqinator \
     --backup-type s3 \
@@ -49,7 +51,28 @@ ArqBackupSet
         UUID 8D4FAD2A-9E08-46F7-829D-E9601A65455D
 ```
 
+#### Google Cloud Storage
+
+```
+$ arqinator \
+    --backup-type googlecloudstorage \
+    --gcs-json-private-key-filepath /Users/ai/keys/gcs.json \
+    --gcs-project-id midyear-courage-109219 \
+    --gcs-bucket-name arq-560729839528 \
+    list-backup-sets
+
+ArqBackupSet
+    UUID 7FE8D069-B218-4E17-8E58-0C7FAF8CFAFC
+    ComputerName Mill
+    UserName ai
+    Folders
+        LocalPath /Users/ai/temp/apsw-3.7.15.1-r1
+        UUID E6F4BC5E-B21F-4828-ADCC-8521F9DBC4C9
+```
+
 ### 3. List directory contents of backups
+
+#### S3
 
 ```
 $ arqinator \
@@ -71,7 +94,40 @@ $ arqinator \
 -rw-r--r--	2015-09-08 14:09:39 -0700 PDT	18kB	known_hosts
 ```
 
+#### Google Cloud Storage
+
+```
+$ arqinator \
+    --backup-type googlecloudstorage \
+    --gcs-json-private-key-filepath /Users/ai/keys/gcs.json \
+    --gcs-project-id midyear-courage-109219 \
+    --gcs-bucket-name arq-560729839528 \
+    list-directory-contents \
+    --backup-set-uuid 7FE8D069-B218-4E17-8E58-0C7FAF8CFAFC \
+    --folder-uuid E6F4BC5E-B21F-4828-ADCC-8521F9DBC4C9 \
+    --path /Users/ai/temp/apsw-3.7.15.1-r1
+
+-rw-r--r--	2015-10-08 12:36:21 -0700 PDT	6.1kB	.DS_Store
+-rw-r--r--	2010-01-05 14:53:28 -0800 PST	699B	MANIFEST.in
+-rw-rw-r--	2012-12-22 02:57:02 -0800 PST	1.0kB	PKG-INFO
+drwxr-xr-x	2015-10-08 12:36:21 -0700 PDT	9.3MB	build
+-rw-r--r--	2012-12-22 01:05:48 -0800 PST	7.1kB	checksums
+drwxr-xr-x	2012-12-26 09:56:54 -0800 PST	1.6MB	doc
+-rw-r--r--	2009-09-12 21:50:06 -0700 PDT	4.3kB	mingwsetup.bat
+-rw-rw-r--	2012-12-26 10:01:38 -0800 PST	33kB	setup.py
+drwxr-xr-x	2012-12-26 10:02:47 -0800 PST	7.6MB	sqlite3
+drwxr-xr-x	2012-12-26 10:02:47 -0800 PST	554kB	src
+-rw-r--r--	2012-12-26 10:05:00 -0800 PST	29kB	testdbx
+-rw-r--r--	2012-12-26 10:05:00 -0800 PST	12kB	testdbx-journal
+-rw-r--r--	2012-12-22 01:36:24 -0800 PST	340kB	tests.py
+-rw-r--r--	2012-12-26 10:03:31 -0800 PST	285kB	tests.pyc
+drwxr-xr-x	2012-12-26 09:56:54 -0800 PST	168kB	tools
+```
+
+
 ### 4. Restore
+
+#### S3
 
 ```
 $ arqinator \
@@ -84,6 +140,21 @@ $ arqinator \
     --source-path /Users/ai/output.txt \
     --destination-path /Users/ai/temp/output.txt
 ```
+
+#### Google Cloud Storage
+
+````
+$ ARQ_ENCRYPTION_PASSWORD=password arqinator \
+    --backup-type googlecloudstorage \
+    --gcs-json-private-key-filepath /Users/ai/keys/gcs.json \
+    --gcs-project-id midyear-courage-109219 \
+    --gcs-bucket-name arq-560729839528 \
+    recover \
+    --backup-set-uuid 7FE8D069-B218-4E17-8E58-0C7FAF8CFAFC \
+    --folder-uuid E6F4BC5E-B21F-4828-ADCC-8521F9DBC4C9 \
+    --source-path /Users/ai/temp/apsw-3.7.15.1-r1/PKG-INFO \
+    --destination-path /Users/ai/temp/PKG-INFO
+````
 
 ## TODO
 
