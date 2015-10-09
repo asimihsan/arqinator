@@ -221,6 +221,10 @@ func recover(c *cli.Context, connection connector.Connection) error {
 		return err
 	}
 	defer f.Close()
+	err = f.Truncate(node.UncompressedDataSize)
+	if err != nil {
+		log.Errorf("Failed to pre-allocate size of file %s: %s", destinationPath, err)
+	}
 	w := bufio.NewWriter(f)
 	defer w.Flush()
 	r, err := arq.GetReaderForBlobKeys(node.DataBlobKeys, apsi, backupSet, bucket)
