@@ -180,6 +180,11 @@ $ arqinator \
 -   support all backup types possible with Arq, start with SFTP.
 -   explicitly check SHA1 hashes of blobs to confirm no corruption.
 
+### Bugs
+
+-   Implement un-cached get, so that we can get the latest SHA from the
+    master commit without having to delete the cache.
+
 ## How to do a release
 
 https://github.com/aktau/github-release
