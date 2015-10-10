@@ -192,9 +192,10 @@ drwxr-xr-x	2012-12-26 09:56:54 -0800 PST	168kB	tools
 
 ### 4. Restore
 
-You can restore either individual files or entire folders.
+You can restore either individual files or entire folders. Note that you need
+to use a Linux-like directory path for Windows backups:
 
-#### S3, Mac
+#### S3, Mac, recovering a single file
 
 ```
 $ arqinator \
@@ -208,7 +209,22 @@ $ arqinator \
     --destination-path /Users/ai/temp/output.txt
 ```
 
-#### Google Cloud Storage, Mac
+#### S3, Windows, recovering an entire folder in verbose mode
+
+```
+arqinator ^
+    --backup-type s3 ^
+    --s3-region us-west-2 ^
+    --s3-bucket-name arq-akiajmthnhpkz2ixzrxq-us-west-2 ^
+    --verbose ^
+    recover ^
+    --backup-set-uuid E7CFDEED-AB08-4970-A377-78F8313AC39C ^
+    --folder-uuid FE8BE3EE-B63B-4D1F-A7E9-6707297823B5 ^
+    --source-path /C/Users/username/Downloads/apsw-3.7.15.1-r1/tools ^
+    --destination-path /C/temp/tools
+```
+
+#### Google Cloud Storage, Mac, recovering a single file
 
 ````
 $ arqinator \

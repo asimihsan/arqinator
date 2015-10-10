@@ -139,7 +139,6 @@ func (conn S3Connection) Get(key string) (string, error) {
 		return cacheFilepath, err
 	}
 	cacheDirectory := filepath.Dir(cacheFilepath)
-	log.Debugf("key: %s, cacheFilepath: %s, cacheDirectory: %s", key, cacheFilepath, cacheDirectory)
 	if err = os.MkdirAll(cacheDirectory, 0777); err != nil {
 		log.Errorf("Couldn't create cache directory %s for cacheFilepath %s: %s",
 			cacheDirectory, cacheFilepath, err)

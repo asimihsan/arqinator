@@ -152,7 +152,6 @@ func (conn GoogleCloudStorageConnection) Get(name string) (string, error) {
 		return cacheFilepath, err
 	}
 	cacheDirectory := filepath.Dir(cacheFilepath)
-	log.Debugf("cacheDirectory: %s", cacheDirectory)
 	err = os.MkdirAll(cacheDirectory, 0777)
 	if err != nil {
 		log.Errorf("Couldn't create cache directory for cacheFilepath %s: %s", cacheFilepath, err)

@@ -16,15 +16,32 @@ import (
 	"path/filepath"
 )
 
+/*
+If we're running on Windows then convert a path to a Windows version of it.
+e.g. on Windows /C/Users/username becomes C:\Users\username
+however on e.g. Mac /C/Users/username returns /C/Users/username
+ */
+func maybeConvertToWindowsPath(path string) string {
+	newPath := filepath.FromSlash(path)
+	if newPath == path {
+		return path
+	}
+	newPath = fmt.Sprintf("%s:%s", string(newPath[1]), string(newPath[2:]))
+	log.Debugf("maybeConvertToWindowsPath converted %s to %s", path, newPath)
+	return newPath
+}
+
 func getWriterForFile(destinationPath string, mode os.FileMode, size int64) (*os.File, *bufio.Writer, error) {
+	destinationPath = maybeConvertToWindowsPath(destinationPath)
 	f, err := os.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
 	if err != nil {
-		log.Errorf("Failed to open destinationPath %s: %s", destinationPath, err)
+		log.Errorf("getWriterForFile failed to open destinationPath %s: %s", destinationPath, err)
 		return nil, nil, err
 	}
+	log.Debugf("getWriterForFile is writing to: %s", destinationPath)
 	err = f.Truncate(int64(size))
 	if err != nil {
-		log.Errorf("Failed to pre-allocate size of file %s: %s", destinationPath, err)
+		log.Errorf("getWriterForFile failed to pre-allocate size of file %s: %s", destinationPath, err)
 		return nil, nil, err
 	}
 	w := bufio.NewWriter(f)
@@ -37,14 +54,14 @@ func DownloadNode(node *arq_types.Node, cacheDirectory string, backupSet *ArqBac
 	apsi, _ := NewPackSetIndex(cacheDirectory, backupSet, bucket)
 	f, w, err := getWriterForFile(destinationPath, node.Mode, int64(node.UncompressedDataSize))
 	if err != nil {
-		log.Errorf("Failed during NewWriterForFile for node %s: %s", node, err)
+		log.Errorf("Failed during DownloadNode getWriterForFile for node %s: %s", node, err)
 		return err
 	}
 	defer f.Close()
 	defer w.Flush()
 	r, err := getReaderForBlobKeys(node.DataBlobKeys, apsi, backupSet, bucket)
 	if err != nil {
-		log.Errorf("Failed during GetReaderForBlobKeys for node %s: %s", node, err)
+		log.Errorf("Failed during DownloadNode GetReaderForBlobKeys for node %s: %s", node, err)
 		return err
 	}
 	io.Copy(w, r)
@@ -55,12 +72,13 @@ func DownloadNode(node *arq_types.Node, cacheDirectory string, backupSet *ArqBac
 func DownloadTree(tree *arq_types.Tree, cacheDirectory string, backupSet *ArqBackupSet,
 	bucket *ArqBucket, sourcePath string, destinationPath string) error {
 	log.Debugf("DownloadTree entry. sourcePath: %s, destinationPath: %s, tree: %s", sourcePath, destinationPath, tree)
-	if err := os.MkdirAll(destinationPath, tree.Mode); err != nil {
-		log.Errorf("DownloadTree failed during MkdirAll %s: %s", destinationPath, err)
+	directoryToCreate := maybeConvertToWindowsPath(destinationPath)
+	if err := os.Mkdir(directoryToCreate, tree.Mode); err != nil {
+		log.Errorf("DownloadTree failed during MkdirAll %s: %s", directoryToCreate, err)
 	}
 	for _, node := range tree.Nodes {
-		subSourcePath := filepath.Join(sourcePath, string(node.Name.Data))
-		subDestinationPath := filepath.Join(destinationPath, string(node.Name.Data))
+		subSourcePath := path.Join(sourcePath, string(node.Name.Data))
+		subDestinationPath := path.Join(destinationPath, string(node.Name.Data))
 		subTree, subNode, err := FindNode(cacheDirectory, backupSet, bucket, subSourcePath)
 		if err != nil {
 			log.Errorf("DownloadTree failed FindNode: %s", err)
