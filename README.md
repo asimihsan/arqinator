@@ -23,6 +23,10 @@ you're using for encrypting your Arq backups:
 ARQ_ENCRYPTION_PASSWORD=mysecretpassword
 ```
 
+Only Arq backup sets encrypted by this password will be visible to you when you
+run `list-backup-sets`. If the password is incorrect they will appear to be
+invisible. Run with `--verbose` if you want more information.
+
 #### S3
 
 Set the following environment variables depending on which backup method you
@@ -169,7 +173,12 @@ $ arqinator \
 
 ## TODO
 
-TODO soft links, permissions, users, etc.
+-   soft links
+-   do you want to 'chown' files and folders to the UID/GID backed up?
+-   support multiple encryption passwords for multiple accounts
+    -   maybe have a text-file based configuration?
+-   support all backup types possible with Arq, start with SFTP.
+-   explicitly check SHA1 hashes of blobs to confirm no corruption.
 
 ## How to do a release
 
