@@ -226,6 +226,10 @@ func testEq(a [20]byte, b [20]byte) bool {
 	}
 */
 
+/*
+Split e.g. /foo/bar/meow.txt into (/foo/bar/meow, .txt)
+or e.g meow.txt into (meow, .txt)
+ */
 func splitExt(path string) (root, ext string) {
 	ext = filepath.Ext(path)
 	root = path[:len(path)-len(ext)]
@@ -273,13 +277,15 @@ func (apsi *ArqPackSetIndex) GetTreePackFile(abs *ArqBackupSet, ab *ArqBucket, t
 			}
 		}()
 	}
+	log.Debugf("GetTreePackFile packIndexObjectResult: %s, indexResult: %s", packIndexObjectResult, indexResult)
 	if packIndexObjectResult == nil {
 		err = errors.New(fmt.Sprintf("GetPackFile failed to find targetSHA1 %s",
 			hex.EncodeToString(targetSHA1[:])))
 		log.Debugf("%s", err)
 		return nil, err
 	}
-	packName, _ := splitExt(path.Base(indexResult))
+	packName, _ := splitExt(filepath.Base(indexResult))
+	log.Debugf("GetTreePackFile packName: %s", packName)
 
 	pfo, err := GetObjectFromTreePackFile(abs, ab, packIndexObjectResult, packName)
 	if err != nil {
@@ -356,7 +362,7 @@ func (apsi *ArqPackSetIndex) GetBlobPackFile(abs *ArqBackupSet, ab *ArqBucket, t
 		log.Debugf("%s", err)
 		return nil, err
 	}
-	packName, _ := splitExt(path.Base(indexResult))
+	packName, _ := splitExt(filepath.Base(indexResult))
 
 	pfo, err := GetObjectFromBlobPackFile(abs, ab, packIndexObjectResult, packName)
 	if err != nil {

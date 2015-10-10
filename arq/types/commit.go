@@ -7,6 +7,7 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"regexp"
+	"net/url"
 )
 
 const (
@@ -100,6 +101,12 @@ func ReadCommit(p *bytes.Buffer) (commit *Commit, err error) {
 		log.Debugf("%s", err)
 		return
 	}
+	unescapedLocation, err := url.QueryUnescape(commit.Location.ToString())
+	if err == nil {
+		log.Debugf("Successfully URL unescaped location %s, use it instead.", commit.Location)
+		commit.Location = NewString(unescapedLocation)
+	}
+
 	locationMatcher := LOCATION_REGEXP.FindAllSubmatch(commit.Location.Data, -1)
 	if locationMatcher == nil {
 		err = errors.New(fmt.Sprintf("Failed to parse commit.Location %s using LOCATION_REGEXP.", commit.Location))

@@ -13,6 +13,14 @@ type String struct {
 	Data []byte
 }
 
+func NewString (s string) *String {
+	return &String{Data: []byte(s)}
+}
+
+func (s String) ToString() string {
+	return string(s.Data)
+}
+
 func (s String) String() string {
 	if s.Data == nil {
 		return "<nil>"

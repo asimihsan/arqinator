@@ -46,7 +46,10 @@ AWS_SECRET_ACCESS_KEY=MY-SECRET-KEY
 
 ### 2. List backup sets
 
-#### S3
+Note that there will be a difference between how paths appear on Windows and
+Linux/Mac:
+
+#### S3, Mac
 
 ```
 $ arqinator \
@@ -64,7 +67,25 @@ ArqBackupSet
         UUID 8D4FAD2A-9E08-46F7-829D-E9601A65455D
 ```
 
-#### Google Cloud Storage
+#### S3, Windows
+
+```
+arqinator ^
+    --backup-type s3 ^
+    --s3-region us-west-2 ^
+    --s3-bucket-name arq-akiajmthnhpkz2ixzrxq-us-west-2 ^
+    list-backup-sets
+
+﻿ArqBackupSet
+    UUID E7CFDEED-AB08-4970-A377-78F8313AC39C
+    ComputerName THE_RAIN
+    UserName SYSTEM
+    Folders
+        LocalPath /C/Users/username/Downloads/apsw-3.7.15.1-r1
+        UUID FE8BE3EE-B63B-4D1F-A7E9-6707297823B5
+```
+
+#### Google Cloud Storage, Mac
 
 ```
 $ arqinator \
@@ -85,7 +106,9 @@ ArqBackupSet
 
 ### 3. List directory contents of backups
 
-#### S3
+Again note that paths for Windows will look a little unusual.
+
+#### S3, Mac
 
 ```
 $ arqinator \
@@ -107,7 +130,36 @@ $ arqinator \
 -rw-r--r--	2015-09-08 14:09:39 -0700 PDT	18kB	known_hosts
 ```
 
-#### Google Cloud Storage
+#### S3, Windows
+
+```
+arqinator ^
+    --backup-type s3 ^
+    --s3-region us-west-2 ^
+    --s3-bucket-name arq-akiajmthnhpkz2ixzrxq-us-west-2 ^
+    list-directory-contents ^
+    --backup-set-uuid E7CFDEED-AB08-4970-A377-78F8313AC39C ^
+    --folder-uuid FE8BE3EE-B63B-4D1F-A7E9-6707297823B5 ^
+    --path /C/Users/username/Downloads/apsw-3.7.15.1-r1
+
+﻿----------      2015-10-08 20:36:21 +0100 BST   6.1kB   .DS_Store
+d---------      1970-01-01 00:00:00 +0000 GMT   9.3MB   build
+----------      2012-12-22 09:05:48 +0000 GMT   7.1kB   checksums
+d---------      1970-01-01 00:00:00 +0000 GMT   1.6MB   doc
+----------      2010-01-05 22:53:28 +0000 GMT   699B    MANIFEST.in
+----------      2009-09-13 05:50:06 +0100 BST   4.3kB   mingwsetup.bat
+----------      2012-12-22 10:57:02 +0000 GMT   1.0kB   PKG-INFO
+----------      2012-12-26 18:01:38 +0000 GMT   33kB    setup.py
+d---------      1970-01-01 00:00:00 +0000 GMT   7.6MB   sqlite3
+d---------      1970-01-01 00:00:00 +0000 GMT   554kB   src
+----------      2012-12-26 18:05:00 +0000 GMT   29kB    testdbx
+----------      2012-12-26 18:05:00 +0000 GMT   12kB    testdbx-journal
+----------      2012-12-22 09:36:24 +0000 GMT   340kB   tests.py
+----------      2012-12-26 18:03:31 +0000 GMT   285kB   tests.pyc
+d---------      1970-01-01 00:00:00 +0000 GMT   168kB   tools
+```
+
+#### Google Cloud Storage, Mac
 
 ```
 $ arqinator \
@@ -142,7 +194,7 @@ drwxr-xr-x	2012-12-26 09:56:54 -0800 PST	168kB	tools
 
 You can restore either individual files or entire folders.
 
-#### S3
+#### S3, Mac
 
 ```
 $ arqinator \
@@ -156,7 +208,7 @@ $ arqinator \
     --destination-path /Users/ai/temp/output.txt
 ```
 
-#### Google Cloud Storage
+#### Google Cloud Storage, Mac
 
 ````
 $ arqinator \
