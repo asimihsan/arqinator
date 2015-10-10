@@ -22,33 +22,33 @@ all-linux: deps build-linux
 build: internal-deps
 	go install github.com/asimihsan/arqinator
 
-release: build-mac-32 build-mac-64 build-linux-32 build-linux-64 build-windows-32 build-windows-64
+release: build-mac-386 build-mac-amd64 build-linux-386 build-linux-amd64 build-windows-386 build-windows-amd64 build-freebsd-386 build-freebsd-amd64 build-netbsd-386 build-netbsd-amd64 build-openbsd-386 build-openbsd-amd64 build-solaris-amd64
 
-build-mac-32: internal-deps
-	GOOS=darwin GOARCH=386 go build -o build/mac32/arqinator
-	pigz -9 --force --keep build/mac32/arqinator
+build-mac-386: internal-deps
+	GOOS=darwin GOARCH=386 go build -o build/mac/386/arqinator
+	pigz -9 --force --keep build/mac/386/arqinator
 
-build-mac-64: internal-deps
-	GOOS=darwin GOARCH=amd64 go build -o build/mac64/arqinator
-	pigz -9 --force --keep build/mac64/arqinator
+build-mac-amd64: internal-deps
+	GOOS=darwin GOARCH=amd64 go build -o build/mac/amd64/arqinator
+	pigz -9 --force --keep build/mac/amd64/arqinator
 
-build-linux-32: internal-deps
-	GOOS=linux GOARCH=386 go build -o build/linux32/arqinator
-	pigz -9 --force --keep build/linux32/arqinator
+build-linux-386: internal-deps
+	GOOS=linux GOARCH=386 go build -o build/linux/386/arqinator
+	pigz -9 --force --keep build/linux/386/arqinator
 
-build-linux-64: internal-deps
-	GOOS=linux GOARCH=amd64 go build -o build/linux64/arqinator
-	pigz -9 --force --keep build/linux64/arqinator
+build-linux-amd64: internal-deps
+	GOOS=linux GOARCH=amd64 go build -o build/linux/amd64/arqinator
+	pigz -9 --force --keep build/linux/amd64/arqinator
 
-build-windows-32: internal-deps
-	GOOS=windows GOARCH=386 go build -o build/windows32/arqinator.exe
-	pigz -9 --force --keep build/windows32/arqinator.exe
-	mv build/windows32/arqinator.exe.gz build/windows32/arqinator.gz
+build-windows-386: internal-deps
+	GOOS=windows GOARCH=386 go build -o build/windows/386/arqinator.exe
+	pigz -9 --force --keep build/windows/386/arqinator.exe
+	mv build/windows/386/arqinator.exe.gz build/windows/386/arqinator.gz
 
-build-windows-64: internal-deps
-	GOOS=windows GOARCH=amd64 go build -o build/windows64/arqinator.exe
-	pigz -9 --force --keep build/windows64/arqinator.exe
-	mv build/windows64/arqinator.exe.gz build/windows64/arqinator.gz
+build-windows-amd64: internal-deps
+	GOOS=windows GOARCH=amd64 go build -o build/windows/amd64/arqinator.exe
+	pigz -9 --force --keep build/windows/amd64/arqinator.exe
+	mv build/windows/amd64/arqinator.exe.gz build/windows/amd64/arqinator.gz
 
 internal-deps:
 	go build $(INTERNAL_DEPENDENCIES)
