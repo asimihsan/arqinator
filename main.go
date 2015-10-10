@@ -229,7 +229,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "arqinator"
 	app.Usage = "restore folders and files from Arq backups"
-	app.Version = "0.1"
+	app.Version = "0.1.0"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "backup-type",
