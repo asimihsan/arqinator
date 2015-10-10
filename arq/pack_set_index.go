@@ -72,12 +72,13 @@ func FindNode(cacheDirectory string, backupSet *ArqBackupSet, bucket *ArqBucket,
 		log.Debugf("currentPath: %s, currentHash: %s", currentPath, hex.EncodeToString((*currentHash)[:]))
 
 		nextPathElement := strings.TrimPrefix(targetPath, currentPath)
-		nextPathElement = filepath.Clean(nextPathElement)
+		nextPathElement = path.Clean(nextPathElement)
 		if nextPathElement == "/" {
 			nextPathElement = "."
 		}
 		nextPathElement = strings.TrimPrefix(nextPathElement, "/")
 		nextPathElement = strings.Split(nextPathElement, "/")[0]
+		log.Debugf("FindNode nextPathElement: %s", nextPathElement)
 
 		tree, err = apsi.GetPackFileAsTree(backupSet, bucket, *currentHash)
 		if err != nil {
@@ -102,7 +103,7 @@ func FindNode(cacheDirectory string, backupSet *ArqBackupSet, bucket *ArqBucket,
 			log.Debugf("%s", err)
 			return nil, nil, err
 		}
-		currentPath = filepath.Join(currentPath, nextPathElement)
+		currentPath = path.Join(currentPath, nextPathElement)
 	}
 }
 
