@@ -17,40 +17,40 @@ github-release upload \
     --user asimihsan \
     --repo arqinator \
     --tag "${TAG}" \
-    --name "arqinator-osx-386.gz" \
-    --file build/mac/386/arqinator.gz
+    --name "arqinator-osx-386.${TAG}.tar.gz" \
+    --file build/mac/386/arqinator.tar.gz
 
 github-release upload \
     --user asimihsan \
     --repo arqinator \
     --tag "${TAG}" \
-    --name "arqinator-osx-amd64.gz" \
-    --file build/mac/amd64/arqinator.gz
+    --name "arqinator-osx-amd64.${TAG}.tar.gz" \
+    --file build/mac/amd64/arqinator.tar.gz
 
 github-release upload \
     --user asimihsan \
     --repo arqinator \
     --tag "${TAG}" \
-    --name "arqinator-linux-386.gz" \
-    --file build/linux/386/arqinator.gz
+    --name "arqinator-linux-386.${TAG}.tar.gz" \
+    --file build/linux/386/arqinator.tar.gz
 
 github-release upload \
     --user asimihsan \
     --repo arqinator \
     --tag "${TAG}" \
-    --name "arqinator-linux-amd64.gz" \
-    --file build/linux/amd64/arqinator.gz
+    --name "arqinator-linux-amd64.${TAG}.tar.gz" \
+    --file build/linux/amd64/arqinator.tar.gz
 
 github-release upload \
     --user asimihsan \
     --repo arqinator \
     --tag "${TAG}" \
-    --name "arqinator-windows-386.gz" \
-    --file build/windows/386/arqinator.gz
+    --name "arqinator-windows-386.${TAG}.tar.gz" \
+    --file build/windows/386/arqinator.tar.gz
 
 github-release upload \
     --user asimihsan \
     --repo arqinator \
     --tag "${TAG}" \
-    --name "arqinator-windows-amd64.gz" \
-    --file build/windows/amd64/arqinator.gz
+    --name "arqinator-windows-amd64.${TAG}.tar.gz" \
+    --file build/windows/amd64/arqinator.tar.gz
