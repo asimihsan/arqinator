@@ -95,6 +95,12 @@ func DownloadTree(tree *arq_types.Tree, cacheDirectory string, backupSet *ArqBac
 	if err := os.Mkdir(directoryToCreate, tree.Mode); err != nil {
 		log.Errorf("DownloadTree failed during MkdirAll %s: %s", directoryToCreate, err)
 	}
+	if tree.Mode == os.FileMode(int(0)) {
+		log.Debugf("tree %s isn't readable or writeable by anyone, fix up", tree)
+		if err := os.Chmod(directoryToCreate, os.FileMode(int(0775))); err != nil {
+			log.Errorf("Failed to set permissions of tree %s: %s", tree, err)
+		}
+	}
 	for _, node := range tree.Nodes {
 		subSourcePath := path.Join(sourcePath, string(node.Name.Data))
 		subDestinationPath := path.Join(destinationPath, string(node.Name.Data))
