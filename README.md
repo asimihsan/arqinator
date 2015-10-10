@@ -136,6 +136,8 @@ drwxr-xr-x	2012-12-26 09:56:54 -0800 PST	168kB	tools
 
 ### 4. Restore
 
+You can restore either individual files or entire folders.
+
 #### S3
 
 ```
@@ -168,3 +170,68 @@ $ arqinator \
 ## TODO
 
 TODO soft links, permissions, users, etc.
+
+## How to do a release
+
+https://github.com/aktau/github-release
+
+```
+github-release release \
+    --user asimihsan \
+    --repo arqinator \
+    --tag v0.1.0 \
+    --name "v0.1.0 test release" \
+    --description "Initial release" \
+    --pre-release
+
+github-release upload \
+    --user asimihsan \
+    --repo arqinator \
+    --tag v0.1.0 \
+    --name "arqinator-osx-386.gz" \
+    --file build/mac32/arqinator.gz
+
+github-release upload \
+    --user asimihsan \
+    --repo arqinator \
+    --tag v0.1.0 \
+    --name "arqinator-osx-amd64.gz" \
+    --file build/mac64/arqinator.gz
+
+github-release upload \
+    --user asimihsan \
+    --repo arqinator \
+    --tag v0.1.0 \
+    --name "arqinator-linux-386.gz" \
+    --file build/linux32/arqinator.gz
+
+github-release upload \
+    --user asimihsan \
+    --repo arqinator \
+    --tag v0.1.0 \
+    --name "arqinator-linux-amd64.gz" \
+    --file build/linux64/arqinator.gz
+
+github-release upload \
+    --user asimihsan \
+    --repo arqinator \
+    --tag v0.1.0 \
+    --name "arqinator-windows-386.gz" \
+    --file build/windows32/arqinator.gz
+
+github-release upload \
+    --user asimihsan \
+    --repo arqinator \
+    --tag v0.1.0 \
+    --name "arqinator-windows-amd64.gz" \
+    --file build/windows64/arqinator.gz
+```
+
+Or if you need to delete a release:
+
+```
+github-release delete \
+    --user asimihsan \
+    --repo arqinator \
+    --tag v0.1.0
+```

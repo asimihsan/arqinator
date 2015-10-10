@@ -25,22 +25,30 @@ build: internal-deps
 release: build-mac-32 build-mac-64 build-linux-32 build-linux-64 build-windows-32 build-windows-64
 
 build-mac-32: internal-deps
-	GOOS=darwin GOARCH=386 go build -o build/arqinator-mac-32
+	GOOS=darwin GOARCH=386 go build -o build/mac32/arqinator
+	pigz -9 --force --keep build/mac32/arqinator
 
 build-mac-64: internal-deps
-	GOOS=darwin GOARCH=amd64 go build -o build/arqinator-mac-64
+	GOOS=darwin GOARCH=amd64 go build -o build/mac64/arqinator
+	pigz -9 --force --keep build/mac64/arqinator
 
 build-linux-32: internal-deps
-	GOOS=linux GOARCH=386 go build -o build/arqinator-linux-32
+	GOOS=linux GOARCH=386 go build -o build/linux32/arqinator
+	pigz -9 --force --keep build/linux32/arqinator
 
 build-linux-64: internal-deps
-	GOOS=linux GOARCH=amd64 go build -o build/arqinator-linux-64
+	GOOS=linux GOARCH=amd64 go build -o build/linux64/arqinator
+	pigz -9 --force --keep build/linux64/arqinator
 
 build-windows-32: internal-deps
-	GOOS=windows GOARCH=386 go build -o build/arqinator-windows-32.exe
+	GOOS=windows GOARCH=386 go build -o build/windows32/arqinator.exe
+	pigz -9 --force --keep build/windows32/arqinator.exe
+	mv build/windows32/arqinator.exe.gz build/windows32/arqinator.gz
 
 build-windows-64: internal-deps
-	GOOS=windows GOARCH=amd64 go build -o build/arqinator-windows-64.exe
+	GOOS=windows GOARCH=amd64 go build -o build/windows64/arqinator.exe
+	pigz -9 --force --keep build/windows64/arqinator.exe
+	mv build/windows64/arqinator.exe.gz build/windows64/arqinator.gz
 
 internal-deps:
 	go build $(INTERNAL_DEPENDENCIES)
