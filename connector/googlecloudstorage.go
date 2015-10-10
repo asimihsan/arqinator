@@ -2,19 +2,19 @@ package connector
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/storage"
-	"io/ioutil"
-	"path/filepath"
-	"time"
-	"os"
-	"path"
-	"io"
-	"strings"
 )
 
 type GoogleCloudStorageConnection struct {
@@ -83,7 +83,7 @@ func (conn GoogleCloudStorageConnection) listObjects(prefix string, delimiter st
 	log.Debugf("GoogleCloudStorageConnection listObjects. prefix: %s, delimeter: %s", prefix, delimiter)
 	objects := make([]Object, 0)
 	query := &storage.Query{
-		Prefix: prefix,
+		Prefix:    prefix,
 		Delimiter: delimiter,
 	}
 	for {
@@ -148,23 +148,29 @@ func (conn GoogleCloudStorageConnection) Get(name string) (string, error) {
 	log.Debugf("GoogleCloudStorageConnection Get. name: %s", name)
 	cacheFilepath, err := conn.getCacheFilepath(name)
 	if err != nil {
-		log.Debugf("Failed to getCacheFilepath in Get: %s", err)
+		log.Errorf("Failed to getCacheFilepath in Get: %s", err)
 		return cacheFilepath, err
 	}
-	err = os.MkdirAll(path.Dir(cacheFilepath), 0777)
+	cacheDirectory := filepath.Dir(cacheFilepath)
+	log.Debugf("cacheDirectory: %s", cacheDirectory)
+	err = os.MkdirAll(cacheDirectory, 0777)
 	if err != nil {
-		log.Debugf("Couldn't create cache directory for cacheFilepath %s: %s", cacheFilepath, err)
+		log.Errorf("Couldn't create cache directory for cacheFilepath %s: %s", cacheFilepath, err)
+		return cacheFilepath, err
+	}
+	if _, err = os.Stat(cacheDirectory); err != nil {
+		log.Errorf("Cache directory %s doesn't exist!", cacheDirectory)
 		return cacheFilepath, err
 	}
 	w, err := os.Create(cacheFilepath)
 	if err != nil {
-		log.Debugf("Couldn't create cache file for cacheFilepath %s: %s", cacheFilepath, err)
+		log.Errorf("Couldn't create cache file for cacheFilepath %s: %s", cacheFilepath, err)
 		return cacheFilepath, err
 	}
 	defer w.Close()
 	r, err := storage.NewReader(conn.Context, conn.BucketName, name)
 	if err != nil {
-		log.Debugf("Failed to download name %s during initialization: %s", name, err)
+		log.Errorf("Failed to download name %s during initialization: %s", name, err)
 		defer os.Remove(cacheFilepath)
 		return cacheFilepath, err
 	}
@@ -172,7 +178,7 @@ func (conn GoogleCloudStorageConnection) Get(name string) (string, error) {
 	_, err = io.Copy(w, r)
 	time.Sleep(100 * time.Millisecond)
 	if err != nil {
-		log.Debugf("Failed to download name %s during download: %s", name, err)
+		log.Errorf("Failed to download name %s during download: %s", name, err)
 		defer os.Remove(cacheFilepath)
 		return cacheFilepath, err
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"os"
-	"path"
 	"path/filepath"
 	"time"
 
@@ -136,18 +135,23 @@ func (conn S3Connection) CachedGet(key string) (string, error) {
 func (conn S3Connection) Get(key string) (string, error) {
 	cacheFilepath, err := conn.getCacheFilepath(key)
 	if err != nil {
-		log.Debugf("Failed to getCacheFilepath in Get: %s", err)
+		log.Errorf("Failed to getCacheFilepath in Get: %s", err)
 		return cacheFilepath, err
 	}
-	err = os.MkdirAll(path.Dir(cacheFilepath), 0777)
-	if err != nil {
-		log.Debugf("Couldn't create cache directory for cacheFilepath %s: %s",
-			cacheFilepath, err)
+	cacheDirectory := filepath.Dir(cacheFilepath)
+	log.Debugf("key: %s, cacheFilepath: %s, cacheDirectory: %s", key, cacheFilepath, cacheDirectory)
+	if err = os.MkdirAll(cacheDirectory, 0777); err != nil {
+		log.Errorf("Couldn't create cache directory %s for cacheFilepath %s: %s",
+			cacheDirectory, cacheFilepath, err)
+		return cacheFilepath, err
+	}
+	if _, err = os.Stat(cacheDirectory); err != nil {
+		log.Errorf("Cache directory %s doesn't exist!", cacheDirectory)
 		return cacheFilepath, err
 	}
 	w, err := os.Create(cacheFilepath)
 	if err != nil {
-		log.Debugf("Couldn't create cache file for cacheFilepath %s: %s",
+		log.Errorf("Couldn't create cache file for cacheFilepath %s: %s",
 			cacheFilepath, err)
 		return cacheFilepath, err
 	}
@@ -158,7 +162,7 @@ func (conn S3Connection) Get(key string) (string, error) {
 	})
 	time.Sleep(100 * time.Millisecond)
 	if err != nil {
-		log.Debugf("Failed to download key: %s", err)
+		log.Errorf("Failed to download key: %s", err)
 		defer os.Remove(cacheFilepath)
 		return cacheFilepath, err
 	}

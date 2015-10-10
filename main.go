@@ -144,8 +144,10 @@ func listDirectoryContents(c *cli.Context, connection connector.Connection) erro
 		log.Errorf("%s", err)
 		return err
 	}
+	log.Printf("Caching tree pack sets. If this is your first run, will take a few minutes...")
 	backupSet := bucket.ArqBackupSet
 	backupSet.CacheTreePackSets()
+	log.Printf("Cached tree pack sets.")
 
 	tree, node, err := arq.FindNode(cacheDirectory, backupSet, bucket, targetPath)
 	if err != nil {
@@ -199,9 +201,11 @@ func recover(c *cli.Context, connection connector.Connection) error {
 		log.Errorf("%s", err)
 		return err
 	}
+	log.Printf("Caching tree and blob pack sets. If this is your first run, will take a few minutes...")
 	backupSet := bucket.ArqBackupSet
 	backupSet.CacheTreePackSets()
 	backupSet.CacheBlobPackSets()
+	log.Printf("Cached tree and blob pack sets.")
 
 	tree, node, err := arq.FindNode(cacheDirectory, backupSet, bucket, sourcePath)
 	if err != nil {
