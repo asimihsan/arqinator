@@ -7,7 +7,8 @@ EXTERNAL_DEPENDENCIES := \
 	golang.org/x/crypto/pbkdf2 \
 	github.com/codegangsta/cli \
 	github.com/Sirupsen/logrus \
-	github.com/dustin/go-humanize
+	github.com/dustin/go-humanize \
+	github.com/pkg/sftp
 
 INTERNAL_DEPENDENCIES := \
 	github.com/asimihsan/arqinator/arq \

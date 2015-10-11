@@ -109,7 +109,7 @@ func DownloadTree(tree *arq_types.Tree, cacheDirectory string, backupSet *ArqBac
 			log.Errorf("DownloadTree failed FindNode: %s", err)
 			return err
 		}
-		if subNode.IsTree.IsTrue() {
+		if subNode == nil || subNode.IsTree.IsTrue() {
 			err = DownloadTree(subTree, cacheDirectory, backupSet, bucket, subSourcePath, subDestinationPath)
 		} else {
 			err = DownloadNode(subNode, cacheDirectory, backupSet, bucket, subSourcePath, subDestinationPath)

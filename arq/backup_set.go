@@ -24,6 +24,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"runtime"
 
 	"github.com/mattn/go-plist"
@@ -31,6 +32,10 @@ import (
 	"github.com/asimihsan/arqinator/connector"
 	"github.com/asimihsan/arqinator/crypto"
 	"strings"
+)
+
+var (
+	UUID_REGEXP = regexp.MustCompile("[a-zA-Z0-9-]{32,}")
 )
 
 type ArqBackupSet struct {
@@ -51,6 +56,10 @@ func GetArqBackupSets(connection connector.Connection, password []byte) ([]*ArqB
 	}
 	arqBackupSets := make([]*ArqBackupSet, 0)
 	for _, object := range objects {
+		if !UUID_REGEXP.MatchString(object.GetPath()) {
+			log.Debugf("folder %s is not UUID, can't be backup set, so skipping", object.GetPath())
+			continue
+		}
 		arqBackupSet, err := NewArqBackupSet(connection, password, object.GetPath())
 		if err != nil {
 			log.Debugf("Error during GetArqBackupSets for object %s: %s", object, err)

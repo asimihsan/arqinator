@@ -30,4 +30,5 @@ type Connection interface {
 	ListObjectsAsAll(prefix string) ([]Object, error)
 	Get(key string) (string, error)
 	CachedGet(key string) (string, error)
+	Close() error
 }
