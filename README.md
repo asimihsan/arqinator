@@ -1,20 +1,39 @@
 # arqinator
 
-Cross-platform restoration of Arq backups.
+Cross-platform restoration of [Arq](https://www.arqbackup.com/) backups.
 
 **This utility is not production ready. Please explicitly test it before assuming it will work for you.**
 
+## Features
+
+-   Cross-platform support for Windows, Mac OS X, and Linux.
+    -   Tested on Windows 7 32-bit, Mac OS X Yosemite 10.10.5 64-bit,
+        and Ubuntu 14.04 LTS 64-bit
+-   Deployable as a single executable file, no external dependencies required.
+-   Recover single files, sub-folders and their contents, or entire backup
+    sets.
+
+## Limitations
+
+-   Currently only supports the following backup types:
+    -   S3
+    -   Google Cloud Storage
+    -   SFTP (only unencrypted SSH private keys)
+-   arqinator has been tested on backups created by Arq 4.14.5 only. I do not
+    know if arqinator works on previous versions of Arq. I'm doubtful that
+    arqinator will work on previous major versions of Arq (i.e. 3 or 2).
+
+ I've successfully listed backup sets, listed directory contents, and downloaded
+ specific files and subfolders on:
+ 
+ -   Backups created by Mac OS X 10.10.5 onto S3, Google Cloud Storage, and SFTP,
+     and then retrieved back onto the same Mac OS X host.
+ -   Backups created by Windows 7 onto S3, and then retrieved back onto the same Windows 7 host and a different
+     Ubuntu 14.04 host.
+
 ## Requirements
 
-arqinator has been tested on backups created by Arq 4.14.5 only. I do not know if arqinator works on previous versions
-of Arq. I'm doubtful that arqinator will work on previous major versions of Arq (i.e. 3 or 2).
 
-I've successfully listed backup sets, listed directory contents, and downloaded specific files and subfolders on:
-
--   Backups created by Mac OS X 10.10.5 onto S3 and Google Cloud Storage, and then retrieved back onto the same
-    Mac OS X host.
--   Backups created by Windows 7 onto S3, and then retrieved back onto the same Windows 7 host and a different
-    Ubuntu 14.04 host.
 
 ## Getting started
 

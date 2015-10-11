@@ -3,7 +3,7 @@
 #set -e
 set -x
 
-#make release
+make release
 
 TAG=$1
 
