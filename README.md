@@ -10,8 +10,10 @@ Cross-platform restoration of [Arq](https://www.arqbackup.com/) backups.
     -   Tested on Windows 7 32-bit, Mac OS X Yosemite 10.10.5 64-bit,
         and Ubuntu 14.04 LTS 64-bit
 -   Deployable as a single executable file, no external dependencies required.
--   Recover single files, sub-folders and their contents, or entire backup
-    sets.
+-   List all backup sets in a particular backup type using `list-backup-sets`
+-   List the contents of directories or information about a file using `list-directory-contents`
+-   Recover single files, sub-folders and their contents, or entire backup sets,
+    using `recover`
 
 ## Limitations
 
