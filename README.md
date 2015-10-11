@@ -22,6 +22,18 @@ Cross-platform restoration of [Arq](https://www.arqbackup.com/) backups.
 -   arqinator has been tested on backups created by Arq 4.14.5 only. I do not
     know if arqinator works on previous versions of Arq. I'm doubtful that
     arqinator will work on previous major versions of Arq (i.e. 3 or 2).
+    
+### TODO
+
+-   soft links aren't supported
+-   do you want to 'chown' files and folders to the UID/GID backed up?
+    -   maybe offer as an option?
+-   support multiple encryption passwords for multiple accounts
+    -   maybe have a text-file based configuration?
+-   support all backup types possible with Arq, start with Dropbox.
+-   explicitly check SHA1 hashes of blobs to confirm no corruption.
+
+### Testing done so far
 
 I've successfully listed backup sets, listed directory contents, and downloaded
 specific files and subfolders on:
@@ -30,10 +42,6 @@ specific files and subfolders on:
     and then retrieved back onto the same Mac OS X host.
 -   Backups created by Windows 7 onto S3, and then retrieved back onto the same Windows 7 host and a different
     Ubuntu 14.04 host.
-
-## Requirements
-
-
 
 ## Getting started
 
@@ -81,7 +89,7 @@ AWS_SECRET_ACCESS_KEY=MY-SECRET-KEY
 
 The preferred way of using SFTP is to use password-less SSH login by putting your
 SSH public key into the SFTP server's `authorized_keys`. When you do so
-currently arqinator only supported unencrypted SSH private keys. However if
+currently arqinator only supports unencrypted SSH private keys. However if
 you want to log into the SFTP server using a plaintext password you can set
 the following environment variable:
 
@@ -342,17 +350,3 @@ $ arqinator \
     --source-path /Users/ai/temp/apsw-3.7.15.1-r1/build \
     --destination-path /Users/ai/temp/foobar
 ```
-
-## TODO
-
--   soft links
--   do you want to 'chown' files and folders to the UID/GID backed up?
--   support multiple encryption passwords for multiple accounts
-    -   maybe have a text-file based configuration?
--   support all backup types possible with Arq, start with SFTP.
--   explicitly check SHA1 hashes of blobs to confirm no corruption.
-
-### Bugs
-
--   Implement un-cached get, so that we can get the latest SHA from the
-    master commit without having to delete the cache.
