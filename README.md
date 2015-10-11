@@ -336,7 +336,7 @@ $ arqinator \
     --destination-path /Users/ai/temp/PKG-INFO
 ````
 
-### SFTP, Mac, recovering a folder
+#### SFTP, Mac, recovering a folder
 
 ```
 $ arqinator \
