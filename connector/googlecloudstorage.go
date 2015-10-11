@@ -20,6 +20,7 @@ Copyright 2015 Asim Ihsan
 package connector
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -49,6 +50,10 @@ func (c GoogleCloudStorageConnection) String() string {
 
 func (c GoogleCloudStorageConnection) GetCacheDirectory() string {
 	return c.CacheDirectory
+}
+
+func (c GoogleCloudStorageConnection) Close() error {
+	return nil
 }
 
 func getContext(jsonPrivateKeyFilepath string, projectID string) (context.Context, error) {
@@ -186,6 +191,8 @@ func (conn GoogleCloudStorageConnection) Get(name string) (string, error) {
 		return cacheFilepath, err
 	}
 	defer w.Close()
+	wBuffered := bufio.NewWriter(w)
+	defer wBuffered.Flush()
 	r, err := storage.NewReader(conn.Context, conn.BucketName, name)
 	if err != nil {
 		log.Errorf("Failed to download name %s during initialization: %s", name, err)
@@ -193,7 +200,7 @@ func (conn GoogleCloudStorageConnection) Get(name string) (string, error) {
 		return cacheFilepath, err
 	}
 	defer r.Close()
-	_, err = io.Copy(w, r)
+	_, err = io.Copy(wBuffered, r)
 	time.Sleep(100 * time.Millisecond)
 	if err != nil {
 		log.Errorf("Failed to download name %s during download: %s", name, err)

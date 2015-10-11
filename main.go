@@ -37,15 +37,35 @@ import (
 	"runtime"
 )
 
+const (
+	VERSION = "v0.1.3"
+)
+
 func cliSetup(c *cli.Context) error {
 	switch c.GlobalString("backup-type") {
-	case "s3":
 	case "googlecloudstorage":
+	case "s3":
+	case "sftp":
 	default:
-		return errors.New("Currently only support backup-type of: ['s3', 'googlecloudstorage']")
+		return errors.New("Currently only support backup-type of: ['googlecloudstorage', 's3', 'sftp']")
 	}
 	if c.GlobalBool("verbose") {
 		log.SetLevel(log.DebugLevel)
+	}
+	if c.GlobalBool("delete-cache-directory") {
+		cacheDirectory := c.GlobalString("cache-directory")
+		log.Debugf("Deleting cache directory %s...", cacheDirectory)
+		fileInfo, err := os.Stat(cacheDirectory)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Can't delete cache directory %s, it doesn't exist", cacheDirectory))
+		}
+		if !fileInfo.IsDir() {
+			return errors.New(fmt.Sprintf("Won't delete cache directory %s, it isn't a directory", cacheDirectory))
+		}
+		if err := os.RemoveAll(cacheDirectory); err != nil {
+			return errors.New(fmt.Sprintf("Failed to delete cache directory %s: %s", cacheDirectory, err))
+		}
+		log.Debugf("Deleted cache directory %s.", cacheDirectory)
 	}
 	return nil
 }
@@ -78,16 +98,50 @@ func googleCloudStorageSetup(c *cli.Context) (connector.Connection, error) {
 	return connection, nil
 }
 
+func sftpSetup(c *cli.Context) (connector.Connection, error) {
+	var (
+		password           *string
+		privateKeyFilepath *string
+	)
+	host := c.GlobalString("sftp-host")
+	port := c.GlobalInt("sftp-port")
+	remotePath := c.GlobalString("sftp-remote-path")
+	username := c.GlobalString("sftp-username")
+	passwordInput := os.Getenv("ARQ_SFTP_PASSWORD")
+	if passwordInput != "" {
+		password = &passwordInput
+	} else {
+		password = nil
+	}
+	if c.GlobalIsSet("sftp-private-key-filepath") {
+		privateKey := c.GlobalString("sftp-private-key-filepath")
+		privateKeyFilepath = &privateKey
+	} else {
+		privateKeyFilepath = nil
+	}
+	cacheDirectory := c.GlobalString("cache-directory")
+
+	connection, err := connector.NewSFTPConnection(host, port, remotePath,
+		username, password, privateKeyFilepath, cacheDirectory)
+	if err != nil {
+		log.Errorf("Error while establishing SFTP connection: %s", err)
+		return connector.SFTPConnection{}, err
+	}
+	return *connection, nil
+}
+
 func getConnection(c *cli.Context) (connector.Connection, error) {
 	var (
 		connection connector.Connection
 		err        error
 	)
 	switch c.GlobalString("backup-type") {
-	case "s3":
-		connection, err = awsSetup(c)
 	case "googlecloudstorage":
 		connection, err = googleCloudStorageSetup(c)
+	case "s3":
+		connection, err = awsSetup(c)
+	case "sftp":
+		connection, err = sftpSetup(c)
 	}
 	if err != nil {
 		log.Debugf("%s", err)
@@ -152,10 +206,19 @@ func findBucket(c *cli.Context, connection connector.Connection, backupSetUUID s
 }
 
 func listDirectoryContents(c *cli.Context, connection connector.Connection) error {
-	cacheDirectory := c.GlobalString("cache-directory")
 	backupSetUUID := c.String("backup-set-uuid")
+	if backupSetUUID == "" {
+		return errors.New("backup-set-uuid is mandatory for list-directory-contents")
+	}
 	folderUUID := c.String("folder-uuid")
+	if folderUUID == "" {
+		return errors.New("folder-uuid is mandatory for list-directory-contents")
+	}
 	targetPath := c.String("path")
+	if targetPath == "" {
+		return errors.New("path is mandatory for list-directory-contents")
+	}
+	cacheDirectory := c.GlobalString("cache-directory")
 
 	bucket, err := findBucket(c, connection, backupSetUUID, folderUUID)
 	if err != nil {
@@ -227,11 +290,12 @@ func recover(c *cli.Context, connection connector.Connection) error {
 	log.Printf("Cached tree and blob pack sets.")
 
 	tree, node, err := arq.FindNode(cacheDirectory, backupSet, bucket, sourcePath)
+	log.Debugf("sourcePath: %s, tree: %s, node: %s", sourcePath, tree, node)
 	if err != nil {
 		log.Errorf("Failed to find source path %s: %s", sourcePath, err)
 		return err
 	}
-	if node.IsTree.IsTrue() {
+	if node == nil || node.IsTree.IsTrue() {
 		err = arq.DownloadTree(tree, cacheDirectory, backupSet, bucket, sourcePath, destinationPath)
 	} else {
 		err = arq.DownloadNode(node, cacheDirectory, backupSet, bucket, sourcePath, destinationPath)
@@ -252,7 +316,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "arqinator"
 	app.Usage = "restore folders and files from Arq backups"
-	app.Version = "0.1.0"
+	app.Version = VERSION
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "backup-type",
@@ -277,6 +341,27 @@ func main() {
 		cli.StringFlag{
 			Name:  "gcs-bucket-name",
 			Usage: "Google Cloud Storage bucket name.",
+		},
+		cli.StringFlag{
+			Name:  "sftp-host",
+			Usage: "SFTP DNS hostname, IPv4, or IPv6 address of server to connect to.",
+		},
+		cli.IntFlag{
+			Name:  "sftp-port",
+			Usage: "SFTP port of server to connect to.",
+			Value: 22,
+		},
+		cli.StringFlag{
+			Name:  "sftp-remote-path",
+			Usage: "SFTP remote path on server to use.",
+		},
+		cli.StringFlag{
+			Name:  "sftp-username",
+			Usage: "SFTP username of server to connect to.",
+		},
+		cli.StringFlag{
+			Name:  "sftp-private-key-filepath",
+			Usage: "SFTP SSH private key filepath to use.",
 		},
 		cli.StringFlag{
 			Name:  "cache-directory",
@@ -306,6 +391,7 @@ func main() {
 					log.Errorf("%s", err)
 					return
 				}
+				defer connection.Close()
 				if err := listBackupSets(c, connection); err != nil {
 					log.Errorf("%s", err)
 					return
@@ -339,6 +425,7 @@ func main() {
 					log.Errorf("%s", err)
 					return
 				}
+				defer connection.Close()
 				if err := listDirectoryContents(c, connection); err != nil {
 					log.Errorf("%s", err)
 					return
@@ -376,6 +463,7 @@ func main() {
 					log.Errorf("%s", err)
 					return
 				}
+				defer connection.Close()
 				if err := recover(c, connection); err != nil {
 					log.Errorf("%s", err)
 					return

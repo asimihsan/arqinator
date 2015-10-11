@@ -26,6 +26,8 @@ How to set environment variables on:
 -   Mac OS X: http://apple.stackexchange.com/questions/106778/how-do-i-set-environment-variables-on-os-x
 -   Windows: https://www.microsoft.com/resources/documentation/windows/xp/all/proddocs/en-us/sysdm_advancd_environmnt_addchange_variable.mspx?mfr=true
 
+Download arqinator binaries from the [releases page](https://github.com/asimihsan/arqinator/releases).
+
 ### 1. Configure Credentials
 
 For all backup methods, set the following environment variable to the password
@@ -55,6 +57,18 @@ AWS_SECRET_ACCESS_KEY=MY-SECRET-KEY
 -   Download a JSON private key file using: https://goo.gl/SK5Rb7
 -   To determine your project ID, click on the gear in the top right, and click "Project information"
 -   To determine your bucket name, on the left navigation pane go to Storage - Cloud Storage - Browser, then find your bucket.
+
+#### SFTP
+
+The preferred way of using SFTP is to use password-less SSH login by putting your
+SSH public key into the SFTP server's `authorized_keys`. When you do so
+currently arqinator only supported unencrypted SSH private keys. However if
+you want to log into the SFTP server using a plaintext password you can set
+the following environment variable:
+
+```
+ARQ_SFTP_PASSWORD=my-sftp-password
+```
 
 ### 2. List backup sets
 
@@ -114,6 +128,28 @@ ArqBackupSet
     Folders
         LocalPath /Users/ai/temp/apsw-3.7.15.1-r1
         UUID E6F4BC5E-B21F-4828-ADCC-8521F9DBC4C9
+```
+
+#### SFTP, Mac, verbose mode
+
+```
+$ arqinator \
+      --backup-type sftp \
+      --sftp-host asims-mac-mini.local \
+      --sftp-port 22 \
+      --sftp-remote-path /Users/aihsan/arq_backup \
+      --sftp-username aihsan \
+      --sftp-private-key-filepath /Users/ai/.ssh/id_rsa \
+      --verbose \
+      list-backup-sets
+
+ArqBackupSet
+    UUID 76A4E004-FCB9-47D7-B080-16A236439F5C
+    ComputerName Mill
+    UserName ai
+    Folders
+        LocalPath /Users/ai/temp/apsw-3.7.15.1-r1
+        UUID 1BFC0BD6-9877-4562-9692-05EB3A5EF20C
 ```
 
 ### 3. List directory contents of backups
@@ -201,6 +237,26 @@ drwxr-xr-x	2012-12-26 10:02:47 -0800 PST	554kB	src
 drwxr-xr-x	2012-12-26 09:56:54 -0800 PST	168kB	tools
 ```
 
+#### SFTP, Mac
+
+```
+arqinator \
+    --backup-type sftp \
+    --sftp-host asims-mac-mini.local \
+    --sftp-port 22 \
+    --sftp-remote-path /Users/aihsan/arq_backup \
+    --sftp-username aihsan \
+    --sftp-private-key-filepath /Users/ai/.ssh/id_rsa \
+    --verbose
+    list-directory-contents \
+    --backup-set-uuid 76A4E004-FCB9-47D7-B080-16A236439F5C \
+    --folder-uuid 1BFC0BD6-9877-4562-9692-05EB3A5EF20C \
+    --path /Users/ai/temp/apsw-3.7.15.1-r1/build
+
+-rw-r--r--	2015-10-09 09:50:34 -0700 PDT	10kB	.DS_Store
+drwxr-xr-x	2012-12-26 10:03:31 -0800 PST	1.5MB	lib.macosx-10.4-x86_64-2.7
+drwxr-xr-x	2015-10-09 09:50:34 -0700 PDT	7.8MB	temp.macosx-10.4-x86_64-2.7
+```
 
 ### 4. Restore
 
@@ -250,6 +306,23 @@ $ arqinator \
     --source-path /Users/ai/temp/apsw-3.7.15.1-r1/PKG-INFO \
     --destination-path /Users/ai/temp/PKG-INFO
 ````
+
+### SFTP, Mac, recovering a folder
+
+```
+$ arqinator \
+    --backup-type sftp \
+    --sftp-host asims-mac-mini.local \
+    --sftp-port 22 \
+    --sftp-remote-path /Users/aihsan/arq_backup \
+    --sftp-username aihsan \
+    --sftp-private-key-filepath /Users/ai/.ssh/id_rsa \
+    recover \
+    --backup-set-uuid 76A4E004-FCB9-47D7-B080-16A236439F5C \
+    --folder-uuid 1BFC0BD6-9877-4562-9692-05EB3A5EF20C \
+    --source-path /Users/ai/temp/apsw-3.7.15.1-r1/build \
+    --destination-path /Users/ai/temp/foobar
+```
 
 ## TODO
 

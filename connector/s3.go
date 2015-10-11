@@ -59,6 +59,10 @@ func (c S3Connection) GetCacheDirectory() string {
 	return c.CacheDirectory
 }
 
+func (c S3Connection) Close() error {
+	return nil
+}
+
 type S3Object struct {
 	S3FullPath string
 }
