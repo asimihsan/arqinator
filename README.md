@@ -23,13 +23,13 @@ Cross-platform restoration of [Arq](https://www.arqbackup.com/) backups.
     know if arqinator works on previous versions of Arq. I'm doubtful that
     arqinator will work on previous major versions of Arq (i.e. 3 or 2).
 
- I've successfully listed backup sets, listed directory contents, and downloaded
- specific files and subfolders on:
+I've successfully listed backup sets, listed directory contents, and downloaded
+specific files and subfolders on:
  
- -   Backups created by Mac OS X 10.10.5 onto S3, Google Cloud Storage, and SFTP,
-     and then retrieved back onto the same Mac OS X host.
- -   Backups created by Windows 7 onto S3, and then retrieved back onto the same Windows 7 host and a different
-     Ubuntu 14.04 host.
+-   Backups created by Mac OS X 10.10.5 onto S3, Google Cloud Storage, and SFTP,
+    and then retrieved back onto the same Mac OS X host.
+-   Backups created by Windows 7 onto S3, and then retrieved back onto the same Windows 7 host and a different
+    Ubuntu 14.04 host.
 
 ## Requirements
 
