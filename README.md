@@ -24,6 +24,7 @@ Cross-platform restoration of [Arq](https://www.arqbackup.com/) backups. Downloa
 -   arqinator has been tested on backups created by Arq 4.14.5 only. I do not
     know if arqinator works on previous versions of Arq. I'm doubtful that
     arqinator will work on previous major versions of Arq (i.e. 3 or 2).
+-   Files are downloaded in serial, might take a while to recover a lot of data.
     
 ### TODO
 
@@ -34,6 +35,7 @@ Cross-platform restoration of [Arq](https://www.arqbackup.com/) backups. Downloa
     -   maybe have a text-file based configuration?
 -   support all backup types possible with Arq, start with Dropbox.
 -   explicitly check SHA1 hashes of blobs to confirm no corruption.
+-   Files are downloaded in serial, should do it in parallel.
 
 ### Testing done so far
 
