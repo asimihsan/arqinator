@@ -1,6 +1,6 @@
 # arqinator
 
-Cross-platform restoration of [Arq](https://www.arqbackup.com/) backups.
+Cross-platform restoration of [Arq](https://www.arqbackup.com/) backups. Download arqinator binaries from the [releases page](https://github.com/asimihsan/arqinator/releases).
 
 **This utility is not production ready. Please explicitly test it before assuming it will work for you.**
 
