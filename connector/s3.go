@@ -144,7 +144,11 @@ func (conn S3Connection) CachedGet(key string) (string, error) {
 		log.Debugf("Failed to getCacheFilepath in CachedGet: %s", err)
 		return "", err
 	}
-	if _, err := os.Stat(cacheFilepath); err == nil {
+	fileInfo, err := os.Stat(cacheFilepath)
+	if err == nil && fileInfo.Size() != 0 {
+		// file exists, so if it's zero-byte then we don't need to retrieve it again
+		// however the file could still be corrupted. a connector cannot know if a file is corrupted or not,
+		// it's up to callers to verify that downloaded files are uncorrupted.
 		return cacheFilepath, nil
 	}
 	cacheFilepath, err = conn.Get(key)

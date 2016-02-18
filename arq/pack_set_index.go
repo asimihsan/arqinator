@@ -1,5 +1,5 @@
 /*
-arqinator: arq/types/pack_set_index.go
+arqinator: arq/pack_set_index.go
 Implements an Arq PackSetIndex, a way of getting packed blobs, trees, and commits.
 
 Copyright 2015 Asim Ihsan
@@ -266,36 +266,34 @@ func (apsi *ArqPackSetIndex) GetTreePackFile(abs *ArqBackupSet, ab *ArqBucket, t
 	var packIndexObjectResult *PackIndexObject
 	var indexResult string
 	for _, index := range indexes {
-		func() {
-			file, err := os.OpenFile(index, os.O_RDONLY, 0644)
-			if err != nil {
-				log.Panicln("Couldn't open index file: ", err)
-			}
-			defer file.Close()
-			mmap, err := mmap.MapRegion(file, -1, mmap.RDONLY, 0, 0)
-			if err != nil {
-				log.Panicln("Failed to mmap index file: ", err)
-			}
-			defer mmap.Unmap()
+		file, err := os.OpenFile(index, os.O_RDONLY, 0644)
+		if err != nil {
+			log.Panicln("Couldn't open index file: ", err)
+		}
+		defer file.Close()
+		mmap, err := mmap.MapRegion(file, -1, mmap.RDONLY, 0, 0)
+		if err != nil {
+			log.Panicln("Failed to mmap index file: ", err)
+		}
+		defer mmap.Unmap()
 
-			p := bytes.NewBuffer(mmap)
-			var header PackIndex
-			binary.Read(p, binary.BigEndian, &header)
-			numberLessThanPrefix := int(header.Fanout[targetSHA1[0]-1])
-			numberEqualAndLessThenPrefix := int(header.Fanout[targetSHA1[0]])
-			var pio PackIndexObject
-			p.Next(numberLessThanPrefix * int(unsafe.Sizeof(pio)))
+		p := bytes.NewBuffer(mmap)
+		var header PackIndex
+		binary.Read(p, binary.BigEndian, &header)
+		numberLessThanPrefix := int(header.Fanout[targetSHA1[0]-1])
+		numberEqualAndLessThenPrefix := int(header.Fanout[targetSHA1[0]])
+		var pio PackIndexObject
+		p.Next(numberLessThanPrefix * int(unsafe.Sizeof(pio)))
 
-			numberOfObjects := numberEqualAndLessThenPrefix - numberLessThanPrefix
-			for i := 0; i < numberOfObjects; i++ {
-				pio, _ := readIntoPackIndexObject(p)
-				if testEq(pio.SHA1, targetSHA1) {
-					packIndexObjectResult = pio
-					indexResult = index
-					break
-				}
+		numberOfObjects := numberEqualAndLessThenPrefix - numberLessThanPrefix
+		for i := 0; i < numberOfObjects; i++ {
+			pio, _ := readIntoPackIndexObject(p)
+			if testEq(pio.SHA1, targetSHA1) {
+				packIndexObjectResult = pio
+				indexResult = index
+				break
 			}
-		}()
+		}
 	}
 	log.Debugf("GetTreePackFile packIndexObjectResult: %s, indexResult: %s", packIndexObjectResult, indexResult)
 	if packIndexObjectResult == nil {
@@ -477,9 +475,26 @@ func GetObjectFromBlobPackFile(abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexO
 func GetObjectFromPackFile(key string, abs *ArqBackupSet, ab *ArqBucket, pio *PackIndexObject, packName string) (*PackFileObject, error) {
 	packFilepath, err := abs.Connection.CachedGet(key)
 	if err != nil {
-		log.Debugf("GetObjectFromTreePackFile failed to get key %s: %s", key, err)
-		return nil, err
+		log.Debugf("GetObjectFromPackFile failed first time to get key %s: %s", key, err)
 	}
+	isValid, err := IsValidPackFile(packFilepath)
+	if (!isValid) {
+		log.Debugf("GetObjectFromPackFile invalid pack file %s first time, will retry. err: %s", packFilepath, err)
+		if err := os.Remove(packFilepath); err != nil {
+			log.Debugf("GetObjectFromPackFile failed to delete pack file %s after detecting corruption. err: ", packFilepath, err)
+			return nil, err
+		}
+		packFilepath, err := abs.Connection.CachedGet(key)
+		if err != nil {
+			log.Debugf("GetObjectFromPackFile failed second time to get key %s: %s", key, err)
+			isValid, err := IsValidPackFile(packFilepath)
+			if (!isValid) {
+				log.Debugf("GetObjectFromPackFile invalid pack file %s second time, will not retry. err: %s", packFilepath, err)
+				return nil, err
+			}
+		}
+	}
+
 	file, err := os.OpenFile(packFilepath, os.O_RDONLY, 0644)
 	if err != nil {
 		log.Debugf("GetObjectFromTreePackFile some error opening pack file %s: %s",
