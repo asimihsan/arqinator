@@ -77,6 +77,7 @@ func awsSetup(c *cli.Context) (connector.Connection, error) {
 
 	defaults.DefaultConfig.Region = aws.String(region)
 	svc := s3.New(nil)
+	log.Debugln("Setting concurrency of S3 downloader to: ", runtime.GOMAXPROCS(0))
 	opts := &s3manager.DownloadOptions{
 		S3:          svc,
 		Concurrency: runtime.GOMAXPROCS(0),

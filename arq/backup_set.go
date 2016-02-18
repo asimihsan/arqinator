@@ -201,19 +201,47 @@ func (abs *ArqBackupSet) cachePackSet(ab *ArqBucket, prefix string) error {
 		inputs <- s3Objs[i]
 	}
 	close(inputs)
+	log.Debugln("cachePackSet using concurrency of: ", runtime.GOMAXPROCS(0)*2)
 	c := make(chan int, runtime.GOMAXPROCS(0)*2)
 	for i := 0; i < cap(c); i++ {
 		go func() {
+			defer func() { c <- 1 }()
 			for inputObject := range inputs {
-				if strings.HasSuffix(inputObject.GetPath(), ".index") {
-					_, err := abs.Connection.CachedGet(inputObject.GetPath())
+				log.Debugln("cachePackSet considering: ", inputObject.GetPath())
+				if !strings.HasSuffix(inputObject.GetPath(), ".index") {
+					log.Debugln("cachePackSet rejects file, not a pack set")
+					continue
+				}
+				log.Debugln("cachePackSet will cache: ", inputObject.GetPath())
+
+				// here we request that the connector either download the file to the cache or ensure
+				// that the cached copy already exists. the connector promises to try to download the
+				// file, but cannot guarantee the file will be uncorrupted. it's up to us to verify
+				// that.
+				cacheFilepath, err := abs.Connection.CachedGet(inputObject.GetPath())
+				if err != nil {
+					log.Debugln("cachePackSet failed first time to get object: ", inputObject)
+					log.Debugln(err)
+				}
+
+				isValid, err := IsValidPackFile(cacheFilepath)
+				if !isValid {
+					log.Debugf("cachePackSet invalid pack file %s first time, will delete and retry. err: %s", cacheFilepath, err)
+					if err := os.Remove(cacheFilepath); err != nil {
+						log.Panicf("cachePackSet failed to delete pack file %s after detecting corruption. err: ", cacheFilepath, err)
+					}
+					cacheFilepath, err = abs.Connection.CachedGet(inputObject.GetPath())
 					if err != nil {
-						log.Debugln("cacheTreePackSet failed to get object: ", inputObject)
+						log.Debugf("cachePackSet failed second time to get object: ", inputObject)
 						log.Debugln(err)
+						isValid, err := IsValidPackFile(cacheFilepath)
+						if !isValid {
+							msg := fmt.Sprintf("cachePackSet invalid pack file %s second time, will not retry. err: %s", cacheFilepath, err)
+							log.Panicln(msg)
+						}
 					}
 				}
 			}
-			c <- 1
 		}()
 	}
 	for i := 0; i < cap(c); i++ {
