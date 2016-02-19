@@ -35,6 +35,9 @@ import (
 	"path/filepath"
 )
 
+var (
+	ErrorCouldNotRecoverTree = errors.New("Couldn't find a tree in the Arq backup")
+)
 /*
 If we're running on Windows then convert a path to a Windows version of it.
 e.g. on Windows /C/Users/username becomes C:\Users\username
@@ -92,6 +95,15 @@ func DownloadNode(node *arq_types.Node, cacheDirectory string, backupSet *ArqBac
 func DownloadTree(tree *arq_types.Tree, cacheDirectory string, backupSet *ArqBackupSet,
 	bucket *ArqBucket, sourcePath string, destinationPath string) error {
 	log.Debugf("DownloadTree entry. sourcePath: %s, destinationPath: %s, tree: %s", sourcePath, destinationPath, tree)
+
+	// if tree is null we failed to find this part of the directory structure in Arq. Either we didn't back it up
+	// or something really wrong happened whilst trying to recover it. Warn loudly but don't stop the backup,
+	// because there may still be other files we can recover!
+	if (tree == nil) {
+		log.Warnf("DownloadTree: couldn't find sourcePath %s in backup, hence cannot recover it. Will continue recovering other files.", sourcePath)
+		return ErrorCouldNotRecoverTree
+	}
+
 	directoryToCreate := maybeConvertToWindowsPath(destinationPath)
 	if err := os.Mkdir(directoryToCreate, tree.Mode); err != nil {
 		log.Errorf("DownloadTree failed during MkdirAll %s: %s", directoryToCreate, err)
