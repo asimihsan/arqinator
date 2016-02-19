@@ -31,8 +31,6 @@ import (
 	"path/filepath"
 	"unsafe"
 
-	"github.com/edsrzf/mmap-go"
-
 	"compress/gzip"
 	"encoding/hex"
 	"github.com/asimihsan/arqinator/arq/types"
@@ -266,18 +264,11 @@ func (apsi *ArqPackSetIndex) GetTreePackFile(abs *ArqBackupSet, ab *ArqBucket, t
 	var packIndexObjectResult *PackIndexObject
 	var indexResult string
 	for _, index := range indexes {
-		file, err := os.OpenFile(index, os.O_RDONLY, 0644)
+		indexContents, err := ioutil.ReadFile(index)
 		if err != nil {
-			log.Panicln("Couldn't open index file: ", err)
+			log.Panicln(fmt.Sprintf("Could not read index file %s into memory. err: %s", index, err))
 		}
-		defer file.Close()
-		mmap, err := mmap.MapRegion(file, -1, mmap.RDONLY, 0, 0)
-		if err != nil {
-			log.Panicln("Failed to mmap index file: ", err)
-		}
-		defer mmap.Unmap()
-
-		p := bytes.NewBuffer(mmap)
+		p := bytes.NewBuffer(indexContents)
 		var header PackIndex
 		binary.Read(p, binary.BigEndian, &header)
 		numberLessThanPrefix := int(header.Fanout[targetSHA1[0]-1])
@@ -343,36 +334,27 @@ func (apsi *ArqPackSetIndex) GetBlobPackFile(abs *ArqBackupSet, ab *ArqBucket, t
 	var packIndexObjectResult *PackIndexObject
 	var indexResult string
 	for _, index := range indexes {
-		func() {
-			file, err := os.OpenFile(index, os.O_RDONLY, 0644)
-			if err != nil {
-				log.Panicln("Couldn't open index file: ", err)
-			}
-			defer file.Close()
-			mmap, err := mmap.MapRegion(file, -1, mmap.RDONLY, 0, 0)
-			if err != nil {
-				log.Panicln("Failed to mmap index file: ", err)
-			}
-			defer mmap.Unmap()
+		indexContents, err := ioutil.ReadFile(index)
+		if err != nil {
+			log.Panicln(fmt.Sprintf("Could not read index file %s into memory. err: %s", index, err))
+		}
+		p := bytes.NewBuffer(indexContents)
+		var header PackIndex
+		binary.Read(p, binary.BigEndian, &header)
+		numberLessThanPrefix := int(header.Fanout[targetSHA1[0]-1])
+		numberEqualAndLessThenPrefix := int(header.Fanout[targetSHA1[0]])
+		var pio PackIndexObject
+		p.Next(numberLessThanPrefix * int(unsafe.Sizeof(pio)))
 
-			p := bytes.NewBuffer(mmap)
-			var header PackIndex
-			binary.Read(p, binary.BigEndian, &header)
-			numberLessThanPrefix := int(header.Fanout[targetSHA1[0]-1])
-			numberEqualAndLessThenPrefix := int(header.Fanout[targetSHA1[0]])
-			var pio PackIndexObject
-			p.Next(numberLessThanPrefix * int(unsafe.Sizeof(pio)))
-
-			numberOfObjects := numberEqualAndLessThenPrefix - numberLessThanPrefix
-			for i := 0; i < numberOfObjects; i++ {
-				pio, _ := readIntoPackIndexObject(p)
-				if testEq(pio.SHA1, targetSHA1) {
-					packIndexObjectResult = pio
-					indexResult = index
-					break
-				}
+		numberOfObjects := numberEqualAndLessThenPrefix - numberLessThanPrefix
+		for i := 0; i < numberOfObjects; i++ {
+			pio, _ := readIntoPackIndexObject(p)
+			if testEq(pio.SHA1, targetSHA1) {
+				packIndexObjectResult = pio
+				indexResult = index
+				break
 			}
-		}()
+		}
 	}
 	if packIndexObjectResult == nil {
 		err = errors.New(fmt.Sprintf("GetBlobPackFile failed to find targetSHA1 %s",

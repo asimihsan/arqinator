@@ -1,7 +1,6 @@
 EXTERNAL_DEPENDENCIES := \
 	github.com/aws/aws-sdk-go/... \
 	google.golang.org/cloud/... \
-	github.com/edsrzf/mmap-go \
 	github.com/mattn/go-plist \
 	github.com/mitchellh/go-homedir \
 	golang.org/x/crypto/pbkdf2 \
