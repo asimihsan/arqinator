@@ -53,6 +53,9 @@ func maybeConvertToWindowsPath(path string) string {
 	return newPath
 }
 
+/**
+	This function is not responsible for closing the file handle you pass in.
+ */
 func getWriterForFile(destinationPath string, mode os.FileMode, size int64) (*os.File, *bufio.Writer, error) {
 	destinationPath = maybeConvertToWindowsPath(destinationPath)
 	f, err := os.OpenFile(destinationPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
@@ -60,7 +63,6 @@ func getWriterForFile(destinationPath string, mode os.FileMode, size int64) (*os
 		log.Errorf("getWriterForFile failed to open destinationPath %s: %s", destinationPath, err)
 		return nil, nil, err
 	}
-	defer f.Close()
 	log.Debugf("getWriterForFile is writing to: %s", destinationPath)
 	err = f.Truncate(int64(size))
 	if err != nil {
