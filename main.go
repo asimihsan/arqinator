@@ -301,7 +301,7 @@ func recover(c *cli.Context, connection connector.Connection) error {
 	} else {
 		err = arq.DownloadNode(node, cacheDirectory, backupSet, bucket, sourcePath, destinationPath)
 	}
-	if err != nil {
+	if err != nil && err != arq.ErrorCouldNotRecoverTree {
 		log.Errorf("recover failed to download node: %s", err)
 		return err
 	}
