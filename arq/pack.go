@@ -53,7 +53,7 @@ func IsValidPackFile(cacheFilepath string) (bool, error) {
 		log.Debugln("IsValidPackFile: some error while opening file: ", err)
 		return false, err
 	}
-
+	defer f.Close()
 	hasher := sha1.New()
 	if _, err := io.CopyN(hasher, f, size - 20); err != nil {
 		log.Debugln("IsValidPackFile: error whilst reading pack file: ", err)
