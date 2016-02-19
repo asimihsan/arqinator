@@ -487,11 +487,11 @@ func GetObjectFromPackFile(key string, abs *ArqBackupSet, ab *ArqBucket, pio *Pa
 		packFilepath, err := abs.Connection.CachedGet(key)
 		if err != nil {
 			log.Debugf("GetObjectFromPackFile failed second time to get key %s: %s", key, err)
-			isValid, err := IsValidPackFile(packFilepath)
-			if (!isValid) {
-				log.Debugf("GetObjectFromPackFile invalid pack file %s second time, will not retry. err: %s", packFilepath, err)
-				return nil, err
-			}
+		}
+		isValid, err := IsValidPackFile(packFilepath)
+		if (!isValid) {
+			log.Debugf("GetObjectFromPackFile invalid pack file %s second time, will not retry. err: %s", packFilepath, err)
+			return nil, err
 		}
 	}
 

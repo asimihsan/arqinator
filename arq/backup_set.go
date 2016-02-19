@@ -234,11 +234,11 @@ func (abs *ArqBackupSet) cachePackSet(ab *ArqBucket, prefix string) error {
 					if err != nil {
 						log.Debugf("cachePackSet failed second time to get object: ", inputObject)
 						log.Debugln(err)
-						isValid, err := IsValidPackFile(cacheFilepath)
-						if !isValid {
-							msg := fmt.Sprintf("cachePackSet invalid pack file %s second time, will not retry. err: %s", cacheFilepath, err)
-							log.Panicln(msg)
-						}
+					}
+					isValid, err := IsValidPackFile(cacheFilepath)
+					if !isValid {
+						msg := fmt.Sprintf("cachePackSet invalid pack file %s second time, will not retry. err: %s", cacheFilepath, err)
+						log.Panicln(msg)
 					}
 				}
 			}
