@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	VERSION = "v0.1.5"
+	VERSION = "v0.1.6"
 )
 
 func cliSetup(c *cli.Context) error {
