@@ -2,7 +2,7 @@
 
 Cross-platform restoration of [Arq](https://www.arqbackup.com/) backups. Download arqinator binaries from the [releases page](https://github.com/asimihsan/arqinator/releases).
 
-**This utility is not production ready. Please explicitly test it before assuming it will work for you.**
+**Please explicitly test listing directories and recovering files before assuming it will work for you.**
 
 ## Features
 
